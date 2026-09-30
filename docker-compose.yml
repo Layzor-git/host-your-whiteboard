@@ -1,0 +1,29 @@
+# Whiteboard, aus dem Quelltext gebaut:
+#
+#   cp .env.example .env      # Anmeldung einstellen, siehe SELF_HOSTING.md
+#   docker compose up -d --build
+#
+# Danach laeuft die App auf http://127.0.0.1:8080. Davor gehoert ein
+# Reverse Proxy mit HTTPS (Cloudflare Tunnel, Caddy, Traefik, nginx, ...).
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    restart: unless-stopped
+    ports:
+      # Standard: nur auf diesem Rechner erreichbar, der Proxy sitzt davor.
+      # WHITEBOARD_BIND=0.0.0.0 nur mit AUTH_MODE=single im eigenen Netz.
+      - "${WHITEBOARD_BIND:-127.0.0.1}:${WHITEBOARD_PORT:-8080}:80"
+    depends_on:
+      - api
+
+  api:
+    build: ./server
+    restart: unless-stopped
+    # Kein ports: Die API ist nur ueber den web-Container erreichbar.
+    env_file: .env
+    volumes:
+      # SQLite-Datenbank und hochgeladene Bilder. Das hier sichern.
+      - ./data:/data

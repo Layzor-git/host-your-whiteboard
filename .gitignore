@@ -1,0 +1,22 @@
+node_modules/
+dist/
+
+# Secrets. They belong on the server, not in version control.
+.env
+.env.local
+server/.env
+deploy.env
+
+# Describes one build, not the source.
+web/.env.production.local
+
+# SQLite and uploads (development and docker-compose.yml).
+server/data/
+data/
+
+# Local tooling and design sources
+.claude/
+Whiteboard design system/
+
+.DS_Store
+Thumbs.db
