@@ -1,5 +1,5 @@
-// Die Icons aus dem Design: 24er-viewBox, Strichstaerke 1.75, runde Enden,
-// keine Fuellung. Eigene Pfade, kein Microsoft-Branding.
+// The icons from the design: 24 viewBox, stroke width 1.75, round caps,
+// no fill. Own paths, no Microsoft branding.
 
 const PFADE = {
   zurueck: 'M14.5 6l-6 6 6 6',
@@ -46,7 +46,7 @@ const PFADE = {
   fehler: 'M12 4l9 15.5H3z M12 10v4.5 M12 17.2v.1',
 };
 
-// Icons, die mehr als einen Pfad brauchen (Kreise, Rechtecke, Fuellungen)
+// Icons that need more than one path (circles, rectangles, fills)
 const FORMEN = {
   formen: (
     <>
@@ -149,10 +149,10 @@ export default function Icon({ name, groesse = 22, staerke = 1.75, className, st
   );
 }
 
-/** Logo aus der Bibliothek: Schwung auf dunklem Quadrat. */
+/** Logo from the library: swoosh on a dark square. */
 export function Logo() {
   return (
-    // Dieselbe Datei wie Favicon und App-Symbole (public/logo.svg)
+    // The same file as the favicon and app icons (public/logo.svg)
     <img className="logo" src="/logo.svg" width="32" height="32" alt="" />
   );
 }

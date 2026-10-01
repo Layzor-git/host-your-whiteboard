@@ -1,13 +1,13 @@
 :80 {
     encode zstd gzip
 
-    # Alles unter /api geht an den Node-Container.
+    # Everything under /api goes to the Node container.
     handle /api/* {
         reverse_proxy api:3000
     }
 
-    # Der Rest ist die gebaute Web-App. try_files sorgt dafuer, dass ein
-    # direkt aufgerufener Pfad die index.html bekommt statt einer 404.
+    # The rest is the built web app. try_files makes sure a path opened
+    # directly gets index.html instead of a 404.
     handle {
         root * /srv
         try_files {path} /index.html

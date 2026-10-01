@@ -1,31 +1,31 @@
-// Live-Abgleich: Wer ein Board offen hat, haengt per WebSocket an dessen
-// "Raum". Aenderungen kommen als kleine Operationen an, werden auf den
-// Stand im Speicher angewendet, an alle anderen Geraete im Raum verteilt
-// und kurz darauf in die Datenbank geschrieben.
+// Live sync: whoever has a board open is attached to its "room" via
+// WebSocket. Changes arrive as small operations, are applied to the state
+// in memory, distributed to all other devices in the room and written to
+// the database shortly afterwards.
 //
-// Operationen (vom Browser, siehe web/src/daten/live.js):
-//   { art: 'setzen', el }        Element anlegen oder ersetzen (per id)
-//   { art: 'loeschen', id }      Element entfernen
+// Operations (from the browser, see web/src/daten/live.js):
+//   { art: 'setzen', el }        create or replace an element (by id)
+//   { art: 'loeschen', id }      remove an element
 //   { art: 'hintergrund', wert } { farbe, muster }
 //
-// Jedes Element hat eine eigene id und wird immer ganz ersetzt. Zwei Geraete
-// koennen sich deshalb nur ins Gehege kommen, wenn sie genau dasselbe
-// Element aendern; dann gilt, was zuletzt ankommt.
+// Every element has its own id and is always replaced as a whole. Two
+// devices can therefore only get in each other's way if they change
+// exactly the same element; then whatever arrives last wins.
 //
-// Nachrichten:
-//   Browser -> Server  { t: 'ops', nr, ops }       nr zaehlt je Verbindung
-//                      { t: 'entwurf', el }       Strich, der gerade entsteht
-//                                                 (null = fertig/abgebrochen)
+// Messages:
+//   Browser -> Server  { t: 'ops', nr, ops }       nr counts per connection
+//                      { t: 'entwurf', el }       stroke being drawn right now
+//                                                 (null = finished/cancelled)
 //                      { t: 'ping' }
 //   Server -> Browser  { t: 'stand', elemente, hintergrund, titel }
 //                      { t: 'ich', verbindung, farbe, recht }
 //                      { t: 'anwesend', personen: [{ verbindung, name, email, farbe, recht }] }
 //                      { t: 'ack', nr }
-//                      { t: 'ops', ops }          von einem anderen Geraet
-//                      { t: 'entwurf', von, el }  von einem anderen Geraet
+//                      { t: 'ops', ops }          from another device
+//                      { t: 'entwurf', von, el }  from another device
 //                      { t: 'meta', titel?, hintergrund? }
 //
-// Wer nur ansehen darf, bekommt alles mit, kann aber nichts senden.
+// Whoever may only view receives everything, but cannot send anything.
 
 import { datenbank, jetzt } from './db.js';
 import { MELDUNGEN, Ungueltig } from './fehler.js';
@@ -35,7 +35,7 @@ const SPEICHERN_NACH_MS = 1000;
 const FARBEN = ['white', 'paper', 'grey', 'mint', 'sky', 'slate'];
 const MUSTER = ['none', 'dots', 'grid', 'lines'];
 
-const raeume = new Map(); // boardId -> Raum
+const raeume = new Map(); // boardId -> room
 
 let verbindungsZaehler = 0;
 
@@ -62,7 +62,7 @@ class Raum {
     this.uhr = setTimeout(() => this.speichern(), SPEICHERN_NACH_MS);
   }
 
-  /** Alles ersetzen, z. B. wenn ein ganzer Stand per REST ankommt. */
+  /** Replace everything, e.g. when a whole state arrives via REST. */
   ersetzen(elemente) {
     this.elemente = new Map(elemente.map((el) => [el.id, el]));
     this.geaendert = true;
@@ -80,7 +80,7 @@ class Raum {
     }));
   }
 
-  /** An alle Verbindungen ausser "ausser". */
+  /** To all connections except "ausser". */
   senden(ausser, nachricht) {
     const text = JSON.stringify(nachricht);
     for (const v of this.verbindungen) if (v !== ausser && v.readyState === 1) v.send(text);
@@ -99,7 +99,7 @@ class Raum {
 }
 
 function raumHolen(nutzerId, boardId) {
-  // Auch ein offener Raum wird nur gezeigt, wer Zugriff hat
+  // Even an open room is only shown to those with access
   const { board } = pruefen(nutzerId, boardId);
   const vorhanden = raeume.get(boardId);
   if (vorhanden) return vorhanden;
@@ -108,13 +108,13 @@ function raumHolen(nutzerId, boardId) {
   return raum;
 }
 
-/** Aktueller Stand, falls das Board gerade live offen ist, sonst null. */
+/** Current state if the board is open live right now, otherwise null. */
 export function liveStand(boardId) {
   const r = raeume.get(boardId);
   return r ? { elemente: [...r.elemente.values()], hintergrund: r.hintergrund } : null;
 }
 
-/** Wenn per REST gespeichert wurde: offenen Raum nachziehen. */
+/** After saving via REST: bring the open room up to date. */
 export function nachRestSpeichern(boardId, { titel, hintergrund, daten }) {
   const r = raeume.get(boardId);
   if (!r) return;
@@ -129,7 +129,7 @@ export function nachRestSpeichern(boardId, { titel, hintergrund, daten }) {
   }
 }
 
-/** Ops pruefen. Wirft Ungueltig mit einem lesbaren Satz. */
+/** Validate ops. Throws Ungueltig with a readable sentence. */
 export function opsPruefen(ops) {
   if (!Array.isArray(ops)) throw new Ungueltig('ops_not_list');
   for (const op of ops) {
@@ -151,7 +151,7 @@ export function opsPruefen(ops) {
   return ops;
 }
 
-/** Ops ohne offene Verbindung anwenden (Nachzuegler aus dem Offline-Puffer). */
+/** Apply ops without an open connection (stragglers from the offline buffer). */
 export function opsAnwenden(nutzerId, boardId, ops) {
   opsPruefen(ops);
   pruefen(nutzerId, boardId, 'bearbeiten');
@@ -165,7 +165,7 @@ export function opsAnwenden(nutzerId, boardId, ops) {
   }
 }
 
-/** Eine WebSocket-Verbindung in den Raum des Boards haengen. */
+/** Attach a WebSocket connection to the board's room. */
 export function verbinden(socket, nutzerId, boardId) {
   let raum;
   let recht;
@@ -180,8 +180,8 @@ export function verbinden(socket, nutzerId, boardId) {
   const person = datenbank().prepare('SELECT name, email FROM nutzer WHERE id = ?').get(nutzerId);
   socket.wb = { id: ++verbindungsZaehler, nutzerId, name: person.name, email: person.email, farbe: kennfarbe(nutzerId), recht };
   raum.verbindungen.add(socket);
-  // Erst das Recht, dann der Stand: Wer nur ansehen darf, weiss es, bevor
-  // er ueberhaupt etwas senden koennte.
+  // Permission first, then the state: whoever may only view knows it before
+  // they could send anything at all.
   socket.send(JSON.stringify({ t: 'ich', verbindung: socket.wb.id, farbe: socket.wb.farbe, recht }));
   socket.send(JSON.stringify(raum.stand()));
   raum.senden(null, { t: 'anwesend', personen: raum.personen() });
@@ -225,15 +225,15 @@ export function verbinden(socket, nutzerId, boardId) {
       raeume.delete(boardId);
       return;
     }
-    // Ein halb gezeichneter Strich dieser Verbindung verschwindet
+    // A half-drawn stroke of this connection disappears
     raum.senden(null, { t: 'entwurf', von: socket.wb.id, el: null });
     raum.senden(null, { t: 'anwesend', personen: raum.personen() });
   });
 }
 
 /**
- * Freigaben haben sich geaendert: Wer keinen Zugriff mehr hat, fliegt raus,
- * wer ein anderes Recht hat, erfaehrt es sofort.
+ * Shares have changed: whoever no longer has access is kicked out,
+ * whoever has a different permission learns about it right away.
  */
 export function zugriffGeaendert(boardId) {
   const raum = raeume.get(boardId);
@@ -250,7 +250,7 @@ export function zugriffGeaendert(boardId) {
   raum.senden(null, { t: 'anwesend', personen: raum.personen() });
 }
 
-/** Beim Herunterfahren: alles Offene sofort schreiben. */
+/** On shutdown: write everything pending right away. */
 export function allesSpeichern() {
   for (const r of raeume.values()) r.speichern();
 }

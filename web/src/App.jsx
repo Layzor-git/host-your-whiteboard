@@ -5,13 +5,13 @@ import BoardEditor from './BoardEditor.jsx';
 import Labor from './Labor.jsx';
 import { t } from './i18n/index.js';
 
-// Seiten ueber die Adresse, damit Zurueck im Browser und ein Lesezeichen
-// auf ein Board funktionieren:
-//   #/               Bibliothek
-//   #/papierkorb     Papierkorb
-//   #/ordner/<id>    ein Ordner in der Bibliothek
-//   #/board/<id>     ein Board
-//   #/labor          Testflaeche fuer die Zeichen-Engine (Entwicklung)
+// Pages via the URL, so that Back in the browser and a bookmark to a
+// board work:
+//   #/               library
+//   #/papierkorb     trash
+//   #/ordner/<id>    a folder in the library
+//   #/board/<id>     a board
+//   #/labor          test area for the drawing engine (development)
 
 function seiteLesen() {
   const h = location.hash.replace(/^#/, '') || '/';
@@ -24,7 +24,7 @@ function seiteLesen() {
   return { art: 'bibliothek' };
 }
 
-/** Ein Satz, den man jemandem zeigen kann, statt eines Stapelabzugs. */
+/** A sentence you can show someone instead of a stack trace. */
 function meldung(fehler) {
   if (fehler instanceof NichtAngemeldet) {
     return t('error.sessionExpired');
@@ -43,8 +43,8 @@ export default function App() {
   }, []);
 
   const oeffnen = useCallback((id) => {
-    // Merken, aus welchem Ordner man kommt: "Zurueck" im Board fuehrt dorthin
-    try { sessionStorage.setItem('wb.zurueck', location.hash || '#/'); } catch { /* egal */ }
+    // Remember which folder you came from: "Back" in the board leads there
+    try { sessionStorage.setItem('wb.zurueck', location.hash || '#/'); } catch { /* ignore */ }
     location.hash = `#/board/${encodeURIComponent(id)}`;
   }, []);
 

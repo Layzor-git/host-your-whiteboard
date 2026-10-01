@@ -1,30 +1,30 @@
-// Service Worker anmelden und den Speicher als dauerhaft anfordern.
+// Register the service worker and request persistent storage.
 
 export function serviceWorkerAnmelden() {
   if (!('serviceWorker' in navigator)) return;
-  // Im Entwicklungsmodus stoert er nur, dann liefert Vite direkt aus.
+  // In development mode it only gets in the way; Vite serves directly then.
   if (import.meta.env.DEV) return;
 
-  // Lief hier schon einer? Dann ist ein Wechsel eine neue Fassung. Beim
-  // allerersten Aufruf uebernimmt der erste Service Worker die Seite, und
-  // das ist kein Grund, neu zu laden.
+  // Was one already running here? Then a change means a new version. On
+  // the very first visit the first service worker takes over the page, and
+  // that is no reason to reload.
   const hatteSchonEinen = !!navigator.serviceWorker.controller;
   let neueFassungDa = false;
   let laedtNeu = false;
 
   /**
-   * Neu laden, aber nur wenn niemand hinsieht.
+   * Reload, but only when nobody is looking.
    *
-   * Hier kommt ein Deployment auf dem Handy ueberhaupt erst an: Der Service
-   * Worker holt die neue Fassung von allein und uebernimmt dank skipWaiting
-   * sofort. Das ausgelieferte JavaScript laeuft aber weiter, bis die Seite
-   * neu geladen wird, und bei einer installierten App passiert das kaum:
-   * Man holt sie aus dem Hintergrund zurueck, statt sie zu oeffnen. Man
-   * rollt aus, prueft am Handy und sieht die alte Fassung, ohne dass
-   * irgendetwas kaputt waere.
+   * This is where a deployment reaches the phone in the first place: the
+   * service worker fetches the new version on its own and takes over right
+   * away thanks to skipWaiting. The JavaScript already served keeps running
+   * until the page is reloaded, though, and with an installed app that
+   * hardly ever happens: you bring it back from the background instead of
+   * opening it. You roll out, check on the phone and see the old version,
+   * without anything being broken.
    *
-   * Sofort neu zu laden waere trotzdem falsch: Es wuerfe weg, was gerade in
-   * einem Formular steht.
+   * Reloading immediately would still be wrong: it would throw away
+   * whatever is currently in a form.
    */
   function neuLadenWennNiemandHinsieht() {
     if (!neueFassungDa || laedtNeu) return;
@@ -44,21 +44,21 @@ export function serviceWorkerAnmelden() {
       (anmeldung) => {
         document.addEventListener('visibilitychange', () => {
           if (document.visibilityState === 'hidden') return neuLadenWennNiemandHinsieht();
-          // Beim Zurueckholen nachsehen, ob es etwas Neues gibt. Ohne das
-          // prueft Chrome erst beim naechsten echten Seitenaufruf, und der
-          // kommt bei einer App selten.
+          // When coming back, check whether there is something new. Without
+          // this Chrome only checks on the next real page load, and that
+          // rarely happens with an app.
           return anmeldung.update().catch(() => {});
         });
       },
-      (fehler) => console.warn('Service Worker nicht angemeldet:', fehler),
+      (fehler) => console.warn('Service worker not registered:', fehler),
     );
   });
 }
 
 /**
- * Browser duerfen lokale Daten loeschen, wenn der Speicher knapp wird.
- * Bei einer installierten App gibt Chrome den Speicher normalerweise als
- * dauerhaft frei, hier fragen wir ausdruecklich an.
+ * Browsers may delete local data when storage runs low. For an
+ * installed app Chrome usually grants persistent storage, here we ask
+ * for it explicitly.
  */
 export async function speicherSichern() {
   if (!navigator.storage?.persist) return null;

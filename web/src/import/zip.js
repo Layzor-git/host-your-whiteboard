@@ -1,6 +1,6 @@
-// Liest Dateien aus einem ZIP, ohne Bibliothek: Das Entpacken macht der
-// Browser selbst (DecompressionStream, Safari ab 16.4). Reicht fuer die
-// Exporte von Microsoft Whiteboard, kein ZIP64, keine Verschluesselung.
+// Reads files from a ZIP without a library: the browser does the
+// decompression itself (DecompressionStream, Safari 16.4+). Enough for the
+// exports of Microsoft Whiteboard; no ZIP64, no encryption.
 
 import { t } from '../i18n/index.js';
 
@@ -11,11 +11,11 @@ async function entpacken(daten, methode) {
   return new Uint8Array(await new Response(strom).arrayBuffer());
 }
 
-/** { name: Uint8Array } fuer alle Dateien im Archiv. */
+/** { name: Uint8Array } for all files in the archive. */
 export async function zipLesen(puffer) {
   const b = new Uint8Array(puffer);
   const v = new DataView(puffer);
-  // Ende des Inhaltsverzeichnisses suchen (steht ganz hinten)
+  // Find the end of the central directory (it is at the very end)
   let ende = -1;
   for (let i = b.length - 22; i >= Math.max(0, b.length - 65557); i--) {
     if (v.getUint32(i, true) === 0x06054b50) { ende = i; break; }

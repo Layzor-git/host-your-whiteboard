@@ -6,11 +6,11 @@ import { glaettungAusRegler } from '../zeichnen/editor.js';
 import { api } from '../api.js';
 import { SPRACHEN, sprache, t, useT } from '../i18n/index.js';
 
-// Einstellungen (Design 4a-4f): Stiftgefuehl mit Testflaeche,
-// Darstellung, Tastenkuerzel.
+// Settings (design 4a-4f): pen feel with a test area, appearance,
+// keyboard shortcuts.
 
-// Beschriftung (i18n-Schluessel) und Tasten. Tastennamen in GROSS werden
-// uebersetzt (Strg/Ctrl, Entf/Del, …), alles andere steht so auf der Taste.
+// Label (i18n key) and keys. Key names in UPPER CASE are translated
+// (Strg/Ctrl, Entf/Del, …), everything else appears as printed on the key.
 const KUERZEL = [
   ['keys.undo', ['CTRL', 'Z']], ['keys.redo', ['CTRL', 'Y']],
   ['keys.copy', ['CTRL', 'C']], ['keys.cut', ['CTRL', 'X']], ['keys.paste', ['CTRL', 'V']],
@@ -29,7 +29,7 @@ function glaettungText(w) {
   return `${w < 34 ? t('settings.smoothingLow') : w < 67 ? t('settings.smoothingMedium') : t('settings.smoothingHigh')} · ${w}`;
 }
 
-/** Aus "20260818164917" wird "18.08.2026, 16:49" bzw. "2026-08-18 16:49". */
+/** "20260818164917" becomes "18.08.2026, 16:49" or "2026-08-18 16:49". */
 function standText(stempel) {
   if (!stempel) return t('settings.development');
   const m = String(stempel).match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/);
@@ -110,8 +110,8 @@ export default function EinstellungenDialog({ offen, schliessen }) {
             </div>
           ))}
         </div>
-        {/* Zwei Staende: "./deploy.sh" rollt nur die Web-App aus, "./deploy.sh api"
-            auch den Server. Zwei verschiedene Nummern = nur eine Haelfte ausgerollt. */}
+        {/* Two stamps: "./deploy.sh" only rolls out the web app, "./deploy.sh api"
+            the server too. Two different numbers = only one half rolled out. */}
         <span className="baustand">
           App: {standText(import.meta.env.VITE_BAUSTAND)}
           {import.meta.env.VITE_COMMIT ? ` · ${import.meta.env.VITE_COMMIT}` : ''}

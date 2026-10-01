@@ -1,36 +1,36 @@
-// Alle Einstellungen an einer Stelle. Werte kommen aus der .env.
+// All settings in one place. Values come from .env.
 
-// Wie der Server erfaehrt, wer anfragt:
-//   cloudflare  signiertes Token von Cloudflare Access (Standard)
-//   header      eine Kopfzeile, die ein vorgeschalteter Anmelde-Proxy setzt
+// How the server learns who is asking:
+//   cloudflare  signed token from Cloudflare Access (default)
+//   header      a header set by a sign-in proxy in front
 //               (Authelia, Authentik, oauth2-proxy, ...)
-//   single      keine Anmeldung, alle sind dieselbe Person. Nur fuer ein
-//               Netz, in das niemand Fremdes kommt (Heimnetz, Tailscale).
+//   single      no sign-in, everyone is the same person. Only for a
+//               network no stranger can get into (home network, Tailscale).
 const MODI = ['cloudflare', 'header', 'single'];
 
 export const config = {
   port: Number(process.env.PORT ?? 3000),
   host: process.env.HOST ?? '0.0.0.0',
 
-  // Verzeichnis fuer SQLite und Uploads. Im Container /data, lokal ./data.
+  // Directory for SQLite and uploads. /data in the container, ./data locally.
   datenVerzeichnis: process.env.DATEN_VERZEICHNIS ?? './data',
 
   auth: {
     modus: (process.env.AUTH_MODE ?? 'cloudflare').trim().toLowerCase(),
-    // Modus header: Name der Kopfzeile mit der E-Mail-Adresse
+    // Mode header: name of the header carrying the email address
     kopfzeile: (process.env.AUTH_HEADER ?? 'Remote-Email').trim().toLowerCase(),
-    // Modus header: wohin "Abmelden" fuehrt (leer: kein Abmelden-Knopf)
+    // Mode header: where "Sign out" leads (empty: no sign-out button)
     abmeldenUrl: (process.env.LOGOUT_URL ?? '').trim(),
-    // Modus single: unter dieser Adresse liegen alle Boards
+    // Mode single: all boards live under this address
     einzelEmail: (process.env.SINGLE_USER_EMAIL ?? 'me@localhost').trim().toLowerCase(),
   },
 
   // Cloudflare Access
-  // teamDomain: der Teil vor .cloudflareaccess.com aus dem Zero-Trust-Dashboard
-  // aud: der Application Audience (AUD) Tag der Access-Anwendung
+  // teamDomain: the part before .cloudflareaccess.com from the Zero Trust dashboard
+  // aud: the Application Audience (AUD) tag of the Access application
   access: {
-    // Nur der Teamname ("meinteam"). Wer die ganze Adresse eintraegt
-    // ("meinteam.cloudflareaccess.com", auch mit https://), bekommt dasselbe.
+    // Just the team name ("myteam"). Entering the full address
+    // ("myteam.cloudflareaccess.com", even with https://) gives the same.
     teamDomain: (process.env.CF_ACCESS_TEAM_DOMAIN ?? '')
       .trim()
       .replace(/^https?:\/\//, '')
@@ -39,12 +39,12 @@ export const config = {
     aud: process.env.CF_ACCESS_AUD ?? '',
   },
 
-  // Entwicklung: Ohne Access gibt es kein Token. Dann tun wir so, als waere
-  // diese Adresse angemeldet. In Produktion MUSS das leer sein.
+  // Development: without Access there is no token. We then pretend this
+  // address is signed in. MUST be empty in production.
   entwicklerEmail: process.env.DEV_EMAIL ?? '',
 
-  // Welcher Stand hier laeuft. Setzt das Dockerfile beim Bauen; lokal steht
-  // dort nichts, und das ist die ehrliche Antwort.
+  // Which build is running here. Set by the Dockerfile at build time;
+  // locally it is empty, and that is the honest answer.
   baustand: process.env.BAUSTAND ?? '',
 
   get istProduktion() {
@@ -52,7 +52,7 @@ export const config = {
   },
 };
 
-// Sicherheitsnetz: In Produktion darf die Entwickler-Abkuerzung nicht greifen.
+// Safety net: the developer shortcut must not take effect in production.
 if (config.istProduktion && config.entwicklerEmail) {
   throw new Error(
     'DEV_EMAIL is set in production and would bypass sign-in. Remove it from .env (for a setup without sign-in use AUTH_MODE=single).',

@@ -1,21 +1,21 @@
-// Was auf der Leinwand liegen kann. Jede Art beschreibt sich selbst ueber
-// dieselbe Schnittstelle, Dokument, Renderer und Radierer kennen nur diese:
+// What can lie on the canvas. Every kind describes itself through the same
+// interface; document, renderer and eraser only know this one:
 //
-//   grenzen(el)        Rechteck in Weltkoordinaten, inklusive Strichbreite
+//   grenzen(el)        rectangle in world coordinates, including stroke width
 //   zeichnen(ctx, el, dunkel)
-//                      in Weltkoordinaten, die Transformation steht schon.
-//                      dunkel = Leinwand ist dunkel, bestimmt die Tintenfarbe
-//   treffer(el)        dicht abgetastete Mittellinien fuer Treffertests: [xy]
-//   stuetzen(el)       die gespeicherten Stuetzpunkte fuer den Punkt-Radierer:
-//                      [{ xy, druck, eckig }], leer = nicht radierbar
+//                      in world coordinates, the transform is already set.
+//                      dunkel = the canvas is dark, determines the ink color
+//   treffer(el)        densely sampled center lines for hit tests: [xy]
+//   stuetzen(el)       the stored control points for the point eraser:
+//                      [{ xy, druck, eckig }], empty = not erasable
 //   halbeBreite(el)
 //
-// Text und Bild kommen spaeter als weitere Eintraege in ARTEN dazu.
+// Text and image come later as further entries in ARTEN.
 //
-// Elemente sind unveraenderlich. Wer eines aendert, legt ein neues Objekt
-// mit derselben id an. Deshalb duerfen Pfade und Grenzen am Objekt selbst
-// zwischengespeichert werden (WeakMap), und der Verlauf fuer Rueckgaengig
-// muss nur alte und neue Objekte merken.
+// Elements are immutable. Whoever changes one creates a new object with
+// the same id. That is why paths and bounds may be cached on the object
+// itself (WeakMap), and the undo history only has to remember old and new
+// objects.
 
 import {
   abstandQuadPunktStrecke, abstandQuadStrecken, erweitert, grenzenVon, runden,
@@ -24,15 +24,15 @@ import {
 import { farbeAufloesen, TEXTMARKER_EIGEN_DECKKRAFT } from './farben.js';
 import { GifAnimation } from './gif.js';
 
-/** Deckkraft eines Textmarkers: Palettenfarben bringen sie schon mit. */
+/** Opacity of a highlighter: palette colors already bring it along. */
 export function markerDeckkraft(farbe) {
-  // Markerfarben (hl-...) bringen ihre Transparenz mit; eigene Farben und
-  // Tintenfarben (nach dem Umfaerben einer Auswahl) werden durchscheinend.
+  // Highlighter colors (hl-...) bring their own transparency; custom colors
+  // and ink colors (after recoloring a selection) become translucent.
   return farbe?.startsWith('hl-') ? 1 : TEXTMARKER_EIGEN_DECKKRAFT;
 }
 
 let zaehler = 0;
-/** Kurz und ohne crypto.randomUUID, das gibt es nur unter HTTPS. */
+/** Short and without crypto.randomUUID, which only exists under HTTPS. */
 export function neueId() {
   zaehler = (zaehler + 1) % 1296;
   return Date.now().toString(36) + zaehler.toString(36).padStart(2, '0')
@@ -49,15 +49,15 @@ function cache(el, bauen) {
   return c;
 }
 
-/** Strichstaerke abhaengig vom Druck: bei mittlerem Druck genau die eingestellte. */
+/** Stroke width depending on pressure: exactly the set width at medium pressure. */
 export function breiteBeiDruck(breite, p) {
   return breite * (0.4 + 1.2 * p);
 }
 
-// ---------------------------------------------------------------- Strich
+// ---------------------------------------------------------------- Stroke
 
-// Ein Strich speichert nur die vereinfachten Punkte. Gezeichnet wird ein
-// Catmull-Rom-Spline durch sie, als kubische Bezierkurven.
+// A stroke stores only the simplified points. What gets drawn is a
+// Catmull-Rom spline through them, as cubic Bezier curves.
 
 function catmullRom(P, i, n) {
   const i0 = Math.max(i - 1, 0);
@@ -74,7 +74,7 @@ function catmullRom(P, i, n) {
   ];
 }
 
-/** Dicht abgetasteter Verlauf des Splines: [x, y, druck, ...]. */
+/** Densely sampled course of the spline: [x, y, druck, ...]. */
 function strichProben(el) {
   const P = el.punkte;
   const D = el.druck;
@@ -102,12 +102,12 @@ function strichProben(el) {
   return out;
 }
 
-const KAPPE = 10; // Stuetzpunkte je runder Strichkappe
+const KAPPE = 10; // points per round stroke cap
 
 /**
- * Umriss eines Strichs mit wechselnder Breite als geschlossenes Polygon
- * [x, y, ...]. P ist [x, y, druck, ...], dicht genug abgetastet, dass
- * Geraden reichen. Dient Leinwand, Live-Vorschau und SVG-Export.
+ * Outline of a stroke with varying width as a closed polygon [x, y, ...].
+ * P is [x, y, druck, ...], sampled densely enough that straight segments
+ * suffice. Used by the canvas, the live preview and the SVG export.
  */
 export function umrissPolygon(P, breite) {
   const n = P.length / 3;
@@ -162,10 +162,10 @@ export function umrissPfad(P, breite) {
 }
 
 /**
- * Eckiger Strich mit wechselnder Breite, so wie Microsoft Whiteboard Tinte
- * zeichnet: je Teilstueck ein Trapez, an jedem Punkt ein Kreis. Die
- * Teilflaechen ueberlappen sich, beim Fuellen (nonzero) ergibt das eine
- * Flaeche ohne doppelte Deckung. Liefert Teilpolygone.
+ * Angular stroke with varying width, the way Microsoft Whiteboard draws
+ * ink: a trapezoid per segment, a circle at every point. The pieces
+ * overlap; filled with nonzero this gives one area without double
+ * coverage. Returns the partial polygons.
  */
 export function kapselPolygone(P, breite) {
   const n = P.length / 3;
@@ -184,8 +184,8 @@ export function kapselPolygone(P, breite) {
     const l = Math.hypot(x2 - x, y2 - y);
     if (!l) continue;
     const nx = -(y2 - y) / l, ny = (x2 - x) / l;
-    // Gleicher Umlaufsinn wie die Kreise, sonst loeschen sich
-    // Ueberlappungen beim Fuellen gegenseitig aus.
+    // Same winding direction as the circles, otherwise overlaps cancel
+    // each other out when filling.
     teile.push([x - nx * ri, y - ny * ri, x2 - nx * r2, y2 - ny * r2, x2 + nx * r2, y2 + ny * r2, x + nx * ri, y + ny * ri]);
   }
   return teile;
@@ -255,14 +255,14 @@ const STRICH = {
   },
 };
 
-// ------------------------------------------------------------------ Form
+// ----------------------------------------------------------------- Shape
 
 export const FORMEN = ['linie', 'pfeil', 'rechteck', 'ellipse', 'dreieck'];
 
 /**
- * Rechteck, Ellipse und Dreieck duerfen gedreht sein (winkel, im Bogenmass,
- * um die Mitte). Linie und Pfeil brauchen das nicht: Ihre zwei Endpunkte
- * werden direkt mitgedreht.
+ * Rectangle, ellipse and triangle may be rotated (winkel, in radians,
+ * around the center). Line and arrow do not need that: their two end
+ * points are rotated directly.
  */
 function gedreht(el, xy) {
   if (!el.winkel) return xy;
@@ -380,23 +380,23 @@ const FORM = {
   },
 };
 
-// ------------------------------------------------------ Gemeinsame Wege
+// --------------------------------------------------------- Shared paths
 
-// ------------------------------------------------------------------- Bild
+// ------------------------------------------------------------------ Image
 
-// Ein Bild ist ein Rechteck x1..x2, y1..y2 (wie die Formen, darf gedreht
-// sein) mit einem Verweis auf die Bilddatei (el.bild). Wie die Id zur
-// Adresse wird, weiss nur der Editor (sie haengt am Board); er setzt das
-// ueber bildQuelleSetzen().
+// An image is a rectangle x1..x2, y1..y2 (like the shapes, may be rotated)
+// with a reference to the image file (el.bild). How the id becomes a URL
+// only the editor knows (it depends on the board); it sets that via
+// bildQuelleSetzen().
 let bildQuelle = () => null;
-const bildSpeicher = new Map(); // Adresse -> { img, fertig, fehler }
+const bildSpeicher = new Map(); // URL -> { img, fertig, fehler }
 const bildHoerer = new Set();
 
 export function bildQuelleSetzen(fn) {
   bildQuelle = fn;
 }
 
-/** fn() sobald ein Bild fertig geladen ist, damit neu gezeichnet wird. */
+/** fn() as soon as an image has finished loading, so it gets redrawn. */
 export function beiBildGeladen(fn) {
   bildHoerer.add(fn);
   return () => bildHoerer.delete(fn);
@@ -421,13 +421,13 @@ function bildEintrag(el) {
   return e;
 }
 
-// ---- Animierte GIFs
+// ---- Animated GIFs
 //
-// Nach dem Laden noch einmal holen (kommt aus dem Browser-Cache) und bei
-// einem GIF mit mehreren Bildern eine GifAnimation daneben legen. Eine Uhr
-// schaltet die Bilder weiter und laesst neu zeichnen, aber nur, solange das
-// GIF auch gezeichnet wird: Liegt es ausserhalb der Sicht (oder ist das
-// Board zu), schlaeft sie.
+// After loading, fetch it once more (comes from the browser cache) and, for
+// a GIF with several frames, put a GifAnimation next to it. A clock
+// advances the frames and triggers a redraw, but only while the GIF is
+// actually being drawn: if it is out of view (or the board is closed), it
+// sleeps.
 
 const animiert = new Set();
 let uhr = 0;
@@ -439,7 +439,7 @@ async function gifPruefen(url, e) {
     e.gif = GifAnimation.aus(await antwort.arrayBuffer());
     if (e.gif) for (const f of bildHoerer) f();
   } catch {
-    // Dann eben stehend
+    // Then it stays still
   }
 }
 
@@ -462,7 +462,7 @@ function ticken() {
   uhrStellen();
 }
 
-/** Was fuer ein Bild-Element gerade zu zeichnen ist: GIF-Bild oder <img>. */
+/** What to draw for an image element right now: GIF frame or <img>. */
 function bildQuelleFuer(el) {
   const e = bildEintrag(el);
   if (!e?.fertig) return null;
@@ -475,13 +475,13 @@ function bildQuelleFuer(el) {
   return e.img;
 }
 
-/** Das geladene Bild eines Elements, oder null, solange es noch laedt. */
+/** The loaded image of an element, or null while it is still loading. */
 export function bildFuer(el) {
   const e = bildEintrag(el);
   return e?.fertig ? e.img : null;
 }
 
-/** Wartet, bis alle Bilder der Elemente geladen sind (fuer den Export). */
+/** Waits until all images of the elements are loaded (for the export). */
 export function bilderLaden(elemente, maxMs = 15000) {
   const offen = elemente
     .filter((el) => el.typ === 'bild')
@@ -519,7 +519,7 @@ const BILD = {
     ctx.save();
     ctx.translate((el.x1 + el.x2) / 2, (el.y1 + el.y2) / 2);
     if (el.winkel) ctx.rotate(el.winkel);
-    // Negative Breite/Hoehe = gespiegelt (beim Skalieren ueber die Kante)
+    // Negative width/height = mirrored (when scaling across the edge)
     ctx.scale(Math.sign(w) || 1, Math.sign(h) || 1);
     const img = bildQuelleFuer(el);
     const aw = Math.abs(w);
@@ -527,7 +527,7 @@ const BILD = {
     if (img) {
       ctx.drawImage(img, -aw / 2, -ah / 2, aw, ah);
     } else {
-      // Laedt noch (oder fehlt): ruhige Flaeche in Bildgroesse
+      // Still loading (or missing): plain area in the size of the image
       ctx.fillStyle = 'rgba(127, 127, 127, 0.14)';
       ctx.fillRect(-aw / 2, -ah / 2, aw, ah);
     }
@@ -550,14 +550,14 @@ export function zeichnen(ctx, el, dunkel = false) {
 }
 
 /**
- * Liegt der Punkt innerhalb einer Flaeche des Elements (gefuellte Form,
- * spaeter Bild)? Fuer Striche immer nein, die trifft man nur auf der Linie.
+ * Is the point inside an area of the element (filled shape, later
+ * image)? Always no for strokes, those are only hit on the line.
  */
 export function enthaelt(el, x, y) {
   return ARTEN[el.typ].enthaelt?.(el, x, y) ?? false;
 }
 
-/** Beruehrt ein Kreis mit Radius r, der von A nach B gezogen wird, das Element? */
+/** Does a circle with radius r, dragged from A to B, touch the element? */
 export function trifft(el, ax, ay, bx, by, r) {
   const a = ARTEN[el.typ];
   const g = r + a.halbeBreite(el);
@@ -577,9 +577,9 @@ export function trifft(el, ax, ay, bx, by, r) {
 }
 
 /**
- * Tastet eine Stuetzlinie so ab, wie sie gezeichnet wird (Spline oder
- * Gerade), und merkt sich zu jeder Probe die Stelle als Kurvenparameter:
- * 2.5 heisst "halb zwischen Stuetzpunkt 2 und 3".
+ * Samples a control line the way it is drawn (spline or straight line)
+ * and records for every sample its position as a curve parameter:
+ * 2.5 means "halfway between control point 2 and 3".
  */
 function abtasten(linie, abstand) {
   const V = linie.xy;
@@ -620,10 +620,10 @@ function abtasten(linie, abstand) {
 }
 
 /**
- * Ein verbliebenes Stueck von Probe a bis Probe b: neue Endpunkte an den
- * Schnittkanten, dazwischen die ORIGINALEN Stuetzpunkte. So bleibt die Form
- * erhalten, auch wenn der Radierer dasselbe Stueck in einer Geste viele Male
- * streift. Nur die Enden werden neu berechnet, nie der ganze Strich.
+ * A remaining piece from sample a to sample b: new end points at the cut
+ * edges, the ORIGINAL control points in between. That keeps the shape
+ * intact even if the eraser brushes the same piece many times in one
+ * gesture. Only the ends are recomputed, never the whole stroke.
  */
 function stueckBauen(linie, a, b, naehe) {
   const V = linie.xy;
@@ -633,8 +633,8 @@ function stueckBauen(linie, a, b, naehe) {
   for (let k = Math.floor(a.u) + 1; k < b.u; k++) {
     const x = V[k * 2];
     const y = V[k * 2 + 1];
-    // Ein Stuetzpunkt direkt neben einem neuen Ende ergaebe einen winzigen
-    // Kurvenabschnitt mit wilder Tangente. Dann lieber das Ende nehmen.
+    // A control point right next to a new end would give a tiny curve
+    // segment with a wild tangent. Better to take the end then.
     if (Math.hypot(x - a.x, y - a.y) < naehe || Math.hypot(x - b.x, y - b.y) < naehe) continue;
     xy.push(x, y);
     dr.push(D ? D[k] : 0.5);
@@ -645,10 +645,10 @@ function stueckBauen(linie, a, b, naehe) {
 }
 
 /**
- * Punkt-Radierer: schneidet heraus, was der Kreis beruehrt. Liefert null,
- * wenn nichts getroffen wurde, sonst die uebrig gebliebenen Stuecke als neue
- * Striche (ohne z, das vergibt der Aufrufer). Formen werden dabei zu
- * Strichen, sobald man in sie hineinradiert.
+ * Point eraser: cuts out whatever the circle touches. Returns null if
+ * nothing was hit, otherwise the remaining pieces as new strokes (without
+ * z, the caller assigns that). Shapes turn into strokes as soon as you
+ * erase into them.
  */
 export function punktRadieren(el, ax, ay, bx, by, r) {
   const a = ARTEN[el.typ];
@@ -696,12 +696,12 @@ export function punktRadieren(el, ax, ay, bx, by, r) {
   });
 }
 
-// ------------------------------------------------------------ Verwandeln
+// ------------------------------------------------------------- Transform
 
 /**
- * Affine Abbildung M = [a, b, c, d, e, f] (wie bei Canvas: x' = a x + c y + e,
- * y' = b x + d y + f) auf ein Element anwenden. Liefert ein neues Objekt mit
- * derselben id. Breiten wachsen mit der Flaechenskalierung mit.
+ * Apply the affine map M = [a, b, c, d, e, f] (as in Canvas: x' = a x + c y + e,
+ * y' = b x + d y + f) to an element. Returns a new object with the same
+ * id. Widths grow along with the area scale.
  */
 export function transformieren(el, M) {
   const [a, b, c, d, e, f] = M;
@@ -737,13 +737,13 @@ export function transformieren(el, M) {
     const winkel = el.winkel || 0;
     const achsenparallel = Math.abs(Math.sin(2 * winkel)) < 1e-9;
 
-    // Ohne Drehung im Spiel: Ecken abbilden, fertig.
+    // No rotation involved: map the corners, done.
     if (!schief && Math.abs(Math.sin(phi)) < 1e-9 && achsenparallel && !winkel) {
       const [x1, y1] = abb(el.x1, el.y1);
       const [x2, y2] = abb(el.x2, el.y2);
       return { ...el, x1: runden(x1), y1: runden(y1), x2: runden(x2), y2: runden(y2), ...mitBreite };
     }
-    // Drehen und gleichmaessig skalieren: Mitte abbilden, Winkel addieren.
+    // Rotate and scale uniformly: map the center, add the angles.
     if (!schief && gleichmaessig && Math.abs(a * d - b * c) > 0) {
       const [mx, my] = abb((el.x1 + el.x2) / 2, (el.y1 + el.y2) / 2);
       const hw = (Math.abs(el.x2 - el.x1) / 2) * sx;
@@ -755,25 +755,25 @@ export function transformieren(el, M) {
         ...mitBreite,
       };
     }
-    // Ein gedrehtes Bild ungleichmaessig strecken: Scherung laesst sich
-    // nicht darstellen, also Seiten in ihrer eigenen Richtung strecken.
+    // Stretching a rotated image non-uniformly: shear cannot be
+    // represented, so stretch the sides along their own direction.
     if (el.typ === 'bild') {
       const [mx, my] = abb((el.x1 + el.x2) / 2, (el.y1 + el.y2) / 2);
-      // Streckung entlang der eigenen Breiten- und Hoehenrichtung des Bildes
+      // Stretch along the image's own width and height directions
       const cw = Math.cos(winkel);
       const sw = Math.sin(winkel);
       const hw = (Math.abs(el.x2 - el.x1) / 2) * Math.hypot(a * cw + c * sw, b * cw + d * sw);
       const hh = (Math.abs(el.y2 - el.y1) / 2) * Math.hypot(-a * sw + c * cw, -b * sw + d * cw);
       return { ...el, x1: runden(mx - hw), y1: runden(my - hh), x2: runden(mx + hw), y2: runden(my + hh) };
     }
-    // Alles andere (gedrehte Form ungleichmaessig gestreckt) laesst sich als
-    // Form nicht mehr beschreiben. Dann wird sie zu Strichen.
+    // Everything else (rotated shape stretched non-uniformly) can no longer
+    // be described as a shape. Then it turns into strokes.
     return formAlsStriche(el).map((s) => transformieren(s, M));
   }
   return el;
 }
 
-/** Eine Form als gewoehnliche Striche, gleiche id fuer das erste Stueck. */
+/** A shape as ordinary strokes, same id for the first piece. */
 export function formAlsStriche(el) {
   return art(el).stuetzen(el).map((l, i) => {
     const s = {
@@ -790,7 +790,7 @@ export function formAlsStriche(el) {
   });
 }
 
-// ----------------------------------------------------------- Lasso-Auswahl
+// --------------------------------------------------------- Lasso selection
 
 function imPolygon(x, y, poly) {
   let drin = false;
@@ -801,7 +801,7 @@ function imPolygon(x, y, poly) {
   return drin;
 }
 
-/** Liegt das Element ueberwiegend im Lasso? */
+/** Does the element lie mostly inside the lasso? */
 export function imLasso(el, poly) {
   let drin = 0;
   let alle = 0;
@@ -814,11 +814,11 @@ export function imLasso(el, poly) {
   return alle > 0 && drin / alle >= 0.6;
 }
 
-// -------------------------------------------------------------- SVG-Export
+// -------------------------------------------------------------- SVG export
 
 const f2 = (v) => Math.round(v * 100) / 100;
 
-/** Ein Element als SVG-Schnipsel, Farben fest aufgeloest. */
+/** An element as an SVG snippet, colors fully resolved. */
 export function alsSvg(el, dunkel) {
   const farbe = farbeAufloesen(el.farbe, dunkel);
   const marker = el.textmarker

@@ -1,15 +1,15 @@
-// Boards laden und anlegen, auch ohne Netz.
+// Load and create boards, even without a network.
 //
-// Der Server auf dem Pi ist die Wahrheit. Jedes geladene Board liegt
-// zusaetzlich in IndexedDB, damit es offline wieder aufgeht. Was den Server
-// nicht erreicht, wartet dort und wird nachgeschoben, sobald er wieder
-// antwortet, auch nach einem Neuladen der Seite:
+// The server on the Pi is the source of truth. Every loaded board is also
+// kept in IndexedDB, so it opens again offline. Whatever does not reach the
+// server waits there and is sent later as soon as it answers again, even
+// after a page reload:
 //
-//   ausstehend  Titel, Hintergrund, offline angelegte Boards
-//   ops         Aenderungen an Elementen, je Board und Element nur die
-//               letzte (siehe live.js). Als Operationen statt als ganzes
-//               Board: So kommen sie beim Abgleich zu dem dazu, was andere
-//               Geraete inzwischen gemacht haben, statt es zu ueberschreiben.
+//   ausstehend  titles, backgrounds, boards created offline
+//   ops         changes to elements, per board and element only the latest
+//               (see live.js). As operations rather than the whole board:
+//               that way, when syncing, they are added to what other devices
+//               have done in the meantime instead of overwriting it.
 
 import { api, KeinNetz } from '../api.js';
 import { t } from '../i18n/index.js';
@@ -31,13 +31,13 @@ function db() {
     };
     anfrage.onsuccess = () => ok(anfrage.result);
     anfrage.onerror = () => fehler(anfrage.error);
-  }).catch(() => null); // privater Modus o. ae.: dann eben ohne
+  }).catch(() => null); // private mode or similar: then do without
   return dbZusage;
 }
 
 const LESEN = ['get', 'getAll', 'getAllKeys'];
 
-/** Wie viele Aenderungen noch nicht beim Server sind (Boards mit Offenem). */
+/** How many changes have not reached the server yet (boards with pending changes). */
 export async function nochOffen() {
   const neu = ((await idb('ausstehend', 'getAllKeys')) ?? []).length;
   let ops = 0;
@@ -48,8 +48,8 @@ export async function nochOffen() {
 }
 
 /**
- * Beim Abmelden: alles Lokale weg, damit die naechste Person auf diesem
- * Geraet nichts davon sieht (Liste, Board-Kopien, ungesendete Aenderungen).
+ * On sign-out: remove everything local, so the next person on this device
+ * sees none of it (list, board copies, unsent changes).
  */
 export async function lokalLoeschen() {
   const d = await db();
@@ -63,7 +63,7 @@ export async function lokalLoeschen() {
   });
 }
 
-/** idb('boards', 'get', id) usw. Liefert undefined, wenn es nicht geht. */
+/** idb('boards', 'get', id) etc. Returns undefined if it does not work. */
 export async function idb(store, art, ...argumente) {
   const d = await db();
   if (!d) return undefined;
@@ -79,9 +79,9 @@ export async function idb(store, art, ...argumente) {
   });
 }
 
-// ---------------------------------------------------------------- Liste
+// ----------------------------------------------------------------- List
 
-/** Boards und Papierkorb. Offline die zuletzt gesehene Liste. */
+/** Boards and trash. Offline the last list seen. */
 export async function listeLaden() {
   try {
     const liste = await api.boards();
@@ -94,7 +94,7 @@ export async function listeLaden() {
   }
 }
 
-/** Offline angelegte oder umbenannte Boards schon in der Liste zeigen. */
+/** Show boards created or renamed offline in the list right away. */
 async function mitAusstehenden(liste) {
   const ids = (await idb('ausstehend', 'getAllKeys')) ?? [];
   if (!ids.length) return liste;
@@ -120,7 +120,7 @@ export function neueBoardId() {
   return `b_${[...zufall].map((b) => b.toString(16).padStart(2, '0')).join('')}`;
 }
 
-/** Legt ein Board an, notfalls erst lokal. Liefert die Metadaten. */
+/** Creates a board, locally first if need be. Returns the metadata. */
 export async function boardAnlegen({ titel, hintergrund, daten, ordnerId }) {
   const id = neueBoardId();
   const eingabe = { id, titel, hintergrund, daten: daten ?? { version: 1, elemente: [] }, ordnerId: ordnerId ?? null };
@@ -136,9 +136,9 @@ export async function boardAnlegen({ titel, hintergrund, daten, ordnerId }) {
   }
 }
 
-// ---------------------------------------------------------------- Ein Board
+// ---------------------------------------------------------------- One board
 
-/** Ops aus dem Offline-Puffer auf eine Elementliste anwenden. */
+/** Apply ops from the offline buffer to an element list. */
 export function opsAufListe(elemente, eintraege) {
   const m = new Map(elemente.map((el) => [el.id, el]));
   let hintergrund = null;
@@ -151,8 +151,8 @@ export function opsAufListe(elemente, eintraege) {
 }
 
 /**
- * Laedt ein Board fuer den Editor. Ungesendete Aenderungen aus dem
- * Offline-Puffer kommen obendrauf: Sie sind neuer als alles auf dem Server.
+ * Loads a board for the editor. Unsent changes from the offline buffer go
+ * on top: they are newer than anything on the server.
  */
 export async function boardLaden(id) {
   const offen = await idb('ausstehend', 'get', id);
@@ -187,7 +187,7 @@ export async function boardLaden(id) {
   };
 }
 
-/** Titel oder Hintergrund aendern, notfalls erst lokal. */
+/** Change title or background, locally first if need be. */
 export async function metaAendern(id, teil) {
   try {
     await api.boardSpeichern(id, teil);
@@ -203,9 +203,9 @@ export async function metaAendern(id, teil) {
 let laeuft = null;
 
 /**
- * Alles nachschieben, was offline liegen geblieben ist: erst offline
- * angelegte Boards und Titel, dann Aenderungen an Elementen. Mehrfache
- * Aufrufe teilen sich einen Durchlauf.
+ * Send everything that was left behind offline: first boards and titles
+ * created offline, then changes to elements. Multiple calls share one
+ * run.
  */
 export function ausstehendeSenden() {
   laeuft ??= (async () => {
@@ -220,7 +220,7 @@ export function ausstehendeSenden() {
           await idb('ausstehend', 'delete', id);
         } catch (e) {
           if (e instanceof KeinNetz) return;
-          // Board gibt es nicht mehr (anderswo endgueltig geloescht)
+          // The board no longer exists (permanently deleted elsewhere)
           await idb('ausstehend', 'delete', id);
         }
       }
@@ -230,7 +230,7 @@ export function ausstehendeSenden() {
         if (!eintraege.length) continue;
         try {
           await api.opsSenden(id, eintraege.map((e) => e.op));
-          // Nur entfernen, was in der Zwischenzeit nicht neu geaendert wurde
+          // Only remove what has not been changed again in the meantime
           const jetzt = await idb('ops', 'get', id);
           for (const [k, v] of Object.entries(jetzt?.eintraege ?? {})) {
             if (v.nr <= (puffer.nr ?? 0)) delete jetzt.eintraege[k];

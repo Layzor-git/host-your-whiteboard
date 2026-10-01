@@ -5,11 +5,11 @@ import { BREITEN, einstellungenSetzen, istTouch, slotSetzen } from '../daten/ein
 import { farbeAufloesen, HIGHLIGHTER, INK } from '../zeichnen/farben.js';
 import { t, useT } from '../i18n/index.js';
 
-// Haupt-Werkzeugleiste unten mittig: Stift 1-3, Textmarker | Radierer,
-// Lasso, Formen | (Touch) Finger zeichnet. Ein Klick auf das aktive
-// Werkzeug oeffnet oder schliesst sein Popover.
+// Main toolbar at the bottom center: pen 1-3, highlighter | eraser,
+// lasso, shapes | (touch) finger draws. A click on the active tool opens
+// or closes its popover.
 
-// Namen stehen unter shape.<id> in i18n/
+// Names live under shape.<id> in i18n/
 const FORMEN = ['linie', 'pfeil', 'rechteck', 'ellipse', 'dreieck'];
 const KONTUR = ['graphite', 'red', 'orange', 'green', 'blue', 'indigo', 'purple'];
 
@@ -90,7 +90,7 @@ export default function Werkzeugleiste({ e, werkzeug, waehlen, popover, fingerUm
   );
 }
 
-/** Popover zum aktiven Werkzeug. */
+/** Popover for the active tool. */
 export function WerkzeugPopover({ e, pop, dunkel, leinwandFarbe, bildAktionen }) {
   if (!pop) return null;
   if (pop === 'bild') {

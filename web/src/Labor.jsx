@@ -5,11 +5,11 @@ import { FORMEN } from './zeichnen/elemente.js';
 import { farbeAufloesen } from './zeichnen/farben.js';
 import { GLAETTUNG_STANDARD } from './zeichnen/glaettung.js';
 
-// Testflaeche fuer das Stiftgefuehl (#/labor). Ein Entwicklerwerkzeug,
-// darum nur auf Englisch und ohne Sprachwahl. Die Bedienung hier ist Werkstatt,
-// nicht das spaetere Design: Sie soll nur alle Regler erreichbar machen.
-// Die Einstellungen merkt sich der Browser, damit man nach dem Neuladen
-// weitervergleichen kann.
+// Test area for the pen feel (#/labor). A developer tool, hence English
+// only and without a language selection. The controls here are a
+// workshop, not the final design: they only make every slider reachable.
+// The browser remembers the settings, so you can keep comparing after a
+// reload.
 
 const SPEICHER = 'wb.labor.3';
 const FARBEN = ['graphite', 'red', 'blue', 'green', 'orange', 'purple'];
@@ -33,7 +33,7 @@ function sichern(z) {
   try {
     localStorage.setItem(SPEICHER, JSON.stringify({ stile: z.stile, einst: z.einst, hintergrund: z.hintergrund }));
   } catch {
-    // privater Modus o. ae., dann eben ohne Gedaechtnis
+    // private mode or similar, then without memory
   }
 }
 
@@ -58,7 +58,7 @@ export default function Labor() {
 
   useEffect(() => {
     if (!ed) return undefined;
-    // Zum Nachsehen in der Konsole, nur beim Entwickeln.
+    // For inspection in the console, only during development.
     if (import.meta.env.DEV) window.editor = ed;
     const alt = laden();
     if (alt.stile) for (const [k, v] of Object.entries(alt.stile)) ed.stilSetzen(k, v);
@@ -99,7 +99,7 @@ export default function Labor() {
                     key={w}
                     className={`labor-knopf${labWerkzeug(z) === w ? ' an' : ''}`}
                     onClick={() => {
-                      // Stift und Marker sind fuer die Engine dasselbe Werkzeug
+                      // Pen and highlighter are the same tool for the engine
                       if (w === 'stift' || w === 'marker') {
                         const marker = w === 'marker';
                         if (marker !== !!z.stile.stift.textmarker) {

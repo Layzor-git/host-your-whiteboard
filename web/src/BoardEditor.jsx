@@ -20,12 +20,12 @@ import { BILD_TYPEN, bildHochladen, bildVorbereiten, bilderEinsammeln, groesseTe
 import { dateiname, herunterladen } from './ui/datei.js';
 import { CANVAS_BG, leinwand, PATTERN } from './zeichnen/farben.js';
 
-// Der Editor (Design 1a-2j): Leinwand ueber den ganzen Schirm, alles
-// andere schwebt darueber.
+// The editor (design 1a-2j): canvas across the whole screen, everything
+// else floats above it.
 //
-// Werkzeuge der Oberflaeche: slot0..slot3, radierer, lasso, formen. Die
-// Engine kennt nur stift/radierer/form/lasso; welcher Slot gerade welche
-// Farbe hat, wird hier uebersetzt.
+// UI tools: slot0..slot3, radierer, lasso, formen. The engine only knows
+// stift/radierer/form/lasso; which slot currently has which color is
+// translated here.
 
 function istEingabefeld(ziel) {
   return ziel instanceof HTMLElement
@@ -47,8 +47,8 @@ function useMedien(anfrage) {
 
 const useHochformat = () => useMedien('(orientation: portrait)');
 
-// Handy (schmal, oder quer mit wenig Hoehe): Das Board startet zum Ansehen,
-// die Werkzeuge kommen erst ueber "Bearbeiten".
+// Phone (narrow, or landscape with little height): the board opens for
+// viewing, the tools only appear via "Edit".
 const useHandy = () => useMedien('(max-width: 599px), (max-height: 499px) and (pointer: coarse)');
 
 export default function BoardEditor({ id, meldung }) {
@@ -61,12 +61,12 @@ export default function BoardEditor({ id, meldung }) {
   const [fehler, setFehler] = useState('');
   const [speicherZustand, setSpeicherZustand] = useState('saved');
   const [recht, setRecht] = useState('besitzer');
-  // Wer gerade im Board ist (je Verbindung, auch eigene andere Geraete)
+  // Who is in the board right now (per connection, including own other devices)
   const [personen, setPersonen] = useState([]);
-  // Mit wem das Board geteilt ist (nur fuer den Besitzer bekannt)
+  // Who the board is shared with (only known to the owner)
   const [geteiltMit, setGeteiltMit] = useState([]);
   const [teilenOffen, setTeilenOffen] = useState(false);
-  // Bilder, die gerade hochladen oder daran gescheitert sind (Platzhalter)
+  // Images currently uploading or that failed to upload (placeholders)
   const [uploads, setUploads] = useState([]);
   const [ablegen, setAblegen] = useState(false);
   const ablegenZaehler = useRef(0);
@@ -100,7 +100,7 @@ export default function BoardEditor({ id, meldung }) {
     setHintergrundOffen(false);
   }, []);
 
-  // ---- Board laden und live mit dem Pi abgleichen
+  // ---- Load the board and sync it live with the Pi
   useEffect(() => {
     if (!ed) return undefined;
     let aus = false;
@@ -120,15 +120,15 @@ export default function BoardEditor({ id, meldung }) {
         setGeteiltMit(meta.geteiltMit ?? []);
         live = new LiveBoard(id, ed.dok, {
           beiZustand: setSpeicherZustand,
-          // Nur-Lesen setzt der Effekt weiter unten
+          // Read-only is set by the effect further down
           beiIch: ({ recht: r }) => setRecht(r),
           beiAnwesenheit: setPersonen,
-          // Eigene andere Geraete zeichnen live mit, aber ohne Namensetikett
+          // Own other devices draw along live, but without a name label
           beiEntwurf: (von, el, person) => ed.entwurfSetzen(
             von, el, person?.email === ichRef.current?.email ? null : person,
           ),
           beiAusgesperrt: () => setFehler(t('editor.noAccess')),
-          // Umbenannt auf einem anderen Geraet; nicht waehrend man tippt
+          // Renamed on another device; not while typing
           beiMeta: ({ titel: t }) => {
             if (!t || document.activeElement === titelFeld.current) return;
             gespeicherterTitel.current = t;
@@ -150,12 +150,12 @@ export default function BoardEditor({ id, meldung }) {
       aus = true;
       abmelden?.();
       live?.zerstoeren();
-      // Was die Verbindung nicht mehr geschafft hat, liegt im Puffer
+      // Whatever the connection did not manage to send is in the buffer
       setTimeout(() => ausstehendeSenden().catch(() => {}), 500);
     };
   }, [ed, id, meldung]);
 
-  // ---- Bilder dieses Boards: Adresse zur Id, Strg+V mit Bildern
+  // ---- Images of this board: URL for the id, Ctrl+V with images
   useEffect(() => {
     bildQuelleSetzen((bildId) => api.bildUrl(id, bildId));
   }, [id]);
@@ -176,7 +176,7 @@ export default function BoardEditor({ id, meldung }) {
     return ed.beiDateien((dateien, punkt) => bilderEinfuegen(dateien, punkt));
   }, [ed, bilderEinfuegen]);
 
-  // ---- Engine-Zustand in React spiegeln, Beruehrung schliesst Popover
+  // ---------- Mirror engine state into React, touching closes popovers
   useEffect(() => {
     if (!ed) return undefined;
     const a = ed.beiZustand(setZ);
@@ -184,10 +184,10 @@ export default function BoardEditor({ id, meldung }) {
     return () => { a(); b(); };
   }, [ed, allesZu]);
 
-  // ---- Einstellungen und Werkzeugwahl an die Engine geben
+  // -------- Pass settings and tool selection to the engine
   useEffect(() => {
     if (!ed) return;
-    // Am Handy gibt es keinen Stift: Beim Bearbeiten zeichnet der Finger
+    // There is no pen on a phone: when editing, the finger draws
     ed.einstellungenSetzen({
       ...glaettungAusRegler(e.glaettung),
       druck: e.druck,
@@ -206,14 +206,14 @@ export default function BoardEditor({ id, meldung }) {
     }
   }, [ed, e, werkzeug, handy, handyBearbeiten]);
 
-  // Nur ansehen: wegen des Rechts, oder am Handy, solange man nicht bearbeitet
+  // View only: because of the permission, or on a phone while not editing
   useEffect(() => {
     if (ed && geladen) ed.nurLesenSetzen(recht === 'ansehen' || handyAnsicht);
   }, [ed, geladen, recht, handyAnsicht]);
 
-  // Die Engine waehlt selbst Lasso (Strg+A, Einfuegen): nachziehen. Nur
-  // beim Wechsel dorthin, sonst holte ein veralteter Zustand die
-  // Oberflaeche zurueck, waehrend sie gerade auf einen Stift umschaltet.
+  // The engine selects lasso by itself (Ctrl+A, paste): follow along. Only
+  // on the switch to it, otherwise a stale state would pull the UI back
+  // while it is switching to a pen.
   const engineWerkzeug = useRef(null);
   useEffect(() => {
     const vorher = engineWerkzeug.current;
@@ -243,7 +243,7 @@ export default function BoardEditor({ id, meldung }) {
     if (t.startsWith('slot')) einstellungenSetzen({ letzterSlot: Number(t.slice(4)) });
   }, [werkzeug, allesZu]);
 
-  // ---- Tastenkuerzel der Oberflaeche (die Leinwand hat ihre eigenen)
+  // ------------------- UI keyboard shortcuts (the canvas has its own)
   useEffect(() => {
     const taste = (ev) => {
       if (istEingabefeld(ev.target) || einstOffen || teilenOffen) return;
@@ -266,7 +266,7 @@ export default function BoardEditor({ id, meldung }) {
       if (k === 'h') { waehlen(`slot${Math.max(0, e.slots.findIndex((s) => s.art === 'marker'))}`); return; }
       if (k === 'l') { waehlen('lasso'); return; }
       if (k === 'e') {
-        // Stift <-> Radierer, auch fuer die Seitentaste am Wacom-Stift
+        // Pen <-> eraser, also for the side button on the Wacom pen
         if (werkzeug === 'radierer') waehlen(`slot${e.letzterSlot ?? 0}`);
         else waehlen('radierer');
       }
@@ -279,7 +279,7 @@ export default function BoardEditor({ id, meldung }) {
     setUploads((u) => u.map((x) => (x.key === key ? { ...x, ...teil } : x)));
   }
 
-  /** Ein Bild vorbereiten, als Platzhalter zeigen, hochladen, einsetzen. */
+  /** Prepare an image, show it as a placeholder, upload it, insert it. */
   async function bildStarten({ datei, mitte, key }) {
     const k = ed.kamera;
     const eintrag = { key, datei, mitte, name: datei.name || 'Bild', groesse: datei.size, fortschritt: 0 };
@@ -364,7 +364,7 @@ export default function BoardEditor({ id, meldung }) {
   async function zurueck() {
     titelSpeichern();
     let ziel = '#/';
-    try { ziel = sessionStorage.getItem('wb.zurueck') || '#/'; } catch { /* egal */ }
+    try { ziel = sessionStorage.getItem('wb.zurueck') || '#/'; } catch { /* ignore */ }
     location.hash = ziel.startsWith('#/board/') ? '#/' : ziel;
   }
 
@@ -431,7 +431,7 @@ export default function BoardEditor({ id, meldung }) {
 
       {z && geladen && (
         <>
-          {/* Oben links: zurueck, Titel, Speicherstatus */}
+          {/* Top left: back, title, save status */}
           <div className="leiste oben-links">
             <IconKnopf icon="zurueck" titel={t('editor.toLibrary')} onClick={zurueck} />
             <input
@@ -457,7 +457,7 @@ export default function BoardEditor({ id, meldung }) {
             </div>
           )}
 
-          {/* Oben rechts: Anwesenheit, Teilen | Rueckgaengig, Wiederholen | Menue */}
+          {/* Top right: presence, share | undo, redo | menu */}
           <div className="leiste oben-rechts">
             {anwesend.length > 0 && (
               <button
@@ -656,7 +656,7 @@ export default function BoardEditor({ id, meldung }) {
             leinwandFarbe={hintergrund.farbe}
             hoehe={ed.renderer.hoehe}
             bildErsetzen={(elId) => { ersetzenId.current = elId; ersetzenFeld.current?.click(); }}
-            // Die naechste Form bekommt dieselbe Dicke
+            // The next shape gets the same thickness
             formBreiteGewaehlt={(breite) => einstellungenSetzen({ form: { ...e.form, breite } })}
           />
 
@@ -727,7 +727,7 @@ export default function BoardEditor({ id, meldung }) {
   );
 }
 
-/** Platzhalter waehrend des Hochladens bzw. nach einem Fehler (Design 8e). */
+/** Placeholder while uploading or after an error (design 8e). */
 function BildPlatzhalter({ u, kamera, nochmal, entfernen }) {
   const t = useT();
   const k = kamera;

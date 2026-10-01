@@ -1,9 +1,9 @@
-// Prueft, ob jede Komponente die React-Hooks importiert, die sie benutzt.
+// Checks whether every component imports the React hooks it uses.
 //
-// Der Bau merkt das nicht: Ein fehlender Import faellt erst zur Laufzeit
-// auf, und zwar genau dann, wenn die betroffene Komponente zum ersten Mal
-// gezeigt wird. Eine Komponente, die nur in einem selten geoeffneten Blatt
-// steckt, faellt also erst beim Nutzer um.
+// The build does not notice: a missing import only shows up at runtime,
+// exactly when the affected component is shown for the first time. A
+// component that only lives in a rarely opened sheet therefore only
+// breaks for the user.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -29,7 +29,7 @@ function pruefe(ordner) {
     for (const hook of HOOKS) {
       const benutzt = new RegExp(`\\b${hook}\\s*\\(`).test(inhalt);
       if (benutzt && !importiert.includes(hook)) {
-        console.log(`FEHLT  ${pfad}: benutzt ${hook}, importiert es aber nicht`);
+        console.log(`MISSING  ${pfad}: uses ${hook} but does not import it`);
         fehler++;
       }
     }
@@ -38,5 +38,5 @@ function pruefe(ordner) {
 
 pruefe(verzeichnis);
 
-console.log(fehler ? `\n${fehler} fehlende Importe` : 'Alle benutzten Hooks sind importiert');
+console.log(fehler ? `\n${fehler} missing imports` : 'All used hooks are imported');
 process.exit(fehler ? 1 : 0);

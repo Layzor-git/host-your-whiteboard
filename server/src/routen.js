@@ -1,9 +1,9 @@
-// Alle Endpunkte an einer Stelle. Sie verteilen nur, die Arbeit steckt in
-// den Modulen daneben.
+// All endpoints in one place. They only dispatch, the work happens in the
+// modules next to them.
 //
-// Jede Anfrage unter /api/v1 traegt bereits den angemeldeten Nutzer als
-// req.nutzer, dafuer sorgt der Haken in index.js. /health ist ausgenommen,
-// damit man auf dem Pi ohne Anmeldung nachsehen kann.
+// Every request under /api/v1 already carries the signed-in user as
+// req.nutzer, the hook in index.js takes care of that. /health is exempt,
+// so you can check on the Pi without signing in.
 
 import * as boards from './boards.js';
 import * as live from './live.js';
@@ -35,8 +35,8 @@ export function routenRegistrieren(app) {
     return antwort.code(204).send();
   });
 
-  // Die Adresse traegt die Version (?v=...), darum darf der Browser das
-  // Bild behalten. Neue Version, neue Adresse.
+  // The URL carries the version (?v=...), so the browser may keep the
+  // image. New version, new URL.
   app.get('/api/v1/boards/:id/vorschau', async (req, antwort) => {
     const { bild, typ } = boards.vorschau(n(req), req.params.id);
     return antwort
@@ -50,7 +50,7 @@ export function routenRegistrieren(app) {
 
   app.post('/api/v1/boards/:id/papierkorb', async (req) => {
     const m = boards.inPapierkorb(n(req), req.params.id);
-    // Wer das Board geteilt bekommen hat, sieht es jetzt nicht mehr
+    // Whoever had the board shared with them no longer sees it now
     live.zugriffGeaendert(req.params.id);
     return m;
   });
@@ -65,31 +65,31 @@ export function routenRegistrieren(app) {
 
   app.delete('/api/v1/papierkorb', async (req) => boards.papierkorbLeeren(n(req)));
 
-  // Einen geloeschten Ordner samt allem, was mit ihm ging, endgueltig loeschen
+  // Permanently delete a deleted folder along with everything that went with it
   app.delete('/api/v1/papierkorb/ordner/:vorgang', async (req) => {
     const ergebnis = ordner.endgueltigLoeschen(n(req), req.params.vorgang);
     bilder.aufraeumen();
     return ergebnis;
   });
 
-  // Live-Abgleich eines offenen Boards. Die Anmeldung prueft der
-  // preHandler-Haken in index.js, bevor die Verbindung umgestellt wird.
+  // Live sync of an open board. Sign-in is checked by the preHandler hook
+  // in index.js before the connection is upgraded.
   app.get('/api/v1/boards/:id/live', { websocket: true }, (socket, req) => {
     live.verbinden(socket, n(req), req.params.id);
   });
 
-  // ---- Ordner
+  // ---- Folders
 
   app.get('/api/v1/ordner', async (req) => ({ ordner: ordner.liste(n(req)) }));
 
   app.post('/api/v1/ordner', async (req, antwort) =>
     antwort.code(201).send(ordner.anlegen(n(req), req.body ?? {})));
 
-  // PATCH /ordner/:id { name?, elternId? } (elternId null = oberste Ebene)
-  // steht weiter unten, weil es Live-Verbindungen neu prueft
+  // PATCH /ordner/:id { name?, elternId? } (elternId null = top level)
+  // is further down, because it re-checks live connections
 
-  // Wer ueber einen Ordner auf Boards zugreift, verliert oder bekommt dabei
-  // vielleicht Zugriff: offene Live-Verbindungen neu pruefen
+  // Whoever accesses boards through a folder may lose or gain access in
+  // the process: re-check open live connections
   const unterOrdnerGeaendert = (ordnerId, vorher = []) => {
     const ids = new Set([...vorher, ...freigaben.boardsUnter(ordnerId).map((b) => b.id)]);
     for (const id of ids) live.zugriffGeaendert(id);
@@ -102,7 +102,7 @@ export function routenRegistrieren(app) {
     return ergebnis;
   });
 
-  // Liefert { vorgang, ... } fuer "Rueckgaengig"
+  // Returns { vorgang, ... } for "Undo"
   app.delete('/api/v1/ordner/:id', async (req) => {
     const vorher = freigaben.boardsUnter(req.params.id).map((b) => b.id);
     const ergebnis = ordner.loeschen(n(req), req.params.id);
@@ -115,14 +115,14 @@ export function routenRegistrieren(app) {
     return antwort.code(204).send();
   });
 
-  // Board ablegen: { ordnerId } (null = oberste Ebene)
+  // Place a board: { ordnerId } (null = top level)
   app.put('/api/v1/boards/:id/ort', async (req, antwort) => {
     ordner.boardAblegen(n(req), req.params.id, req.body?.ordnerId ?? null);
     live.zugriffGeaendert(req.params.id);
     return antwort.code(204).send();
   });
 
-  // ---- Ordner teilen (gilt fuer alles darin)
+  // ---- Sharing folders (applies to everything inside)
 
   app.get('/api/v1/ordner/:id/freigaben', async (req) => freigaben.ordnerFreigabenListe(n(req), req.params.id));
 
@@ -143,16 +143,16 @@ export function routenRegistrieren(app) {
     return antwort.code(204).send();
   });
 
-  // ---- Bilder
+  // ---- Images
 
-  // Rohdaten im Body (Content-Type image/...), Id und Masse als Query
+  // Raw data in the body (Content-Type image/...), id and dimensions as query
   app.post('/api/v1/boards/:id/bilder', { bodyLimit: bilder.MAX_BYTES + 1024 }, async (req, antwort) =>
     antwort.code(201).send(bilder.hochladen(n(req), req.params.id, req.body, {
       wunschId: req.query.id, breite: req.query.breite, hoehe: req.query.hoehe,
     })));
 
-  // Ein Bild aendert sich nie (neues Bild = neue Id), darum darf der
-  // Browser es behalten
+  // An image never changes (new image = new id), so the browser may
+  // keep it
   app.get('/api/v1/boards/:id/bilder/:bild', async (req, antwort) => {
     const { pfad, typ } = bilder.holen(n(req), req.params.id, req.params.bild);
     return antwort
@@ -162,33 +162,33 @@ export function routenRegistrieren(app) {
       .send(createReadStream(pfad));
   });
 
-  // ---- Teilen
+  // ---- Sharing
 
   app.get('/api/v1/boards/:id/freigaben', async (req) => freigaben.liste(n(req), req.params.id));
 
-  // { email, recht: 'bearbeiten' | 'ansehen' }; dieselbe Adresse nochmal
-  // aendert nur das Recht
+  // { email, recht: 'bearbeiten' | 'ansehen' }; the same address again
+  // only changes the permission
   app.post('/api/v1/boards/:id/freigaben', async (req) => {
     const ergebnis = freigaben.setzen(n(req), req.params.id, req.body ?? {});
     live.zugriffGeaendert(req.params.id);
     return ergebnis;
   });
 
-  // Besitzer entfernt jemanden, oder man entfernt sich selbst ("Aus meiner
-  // Bibliothek entfernen")
+  // Owner removes someone, or you remove yourself ("Remove from my
+  // library")
   app.delete('/api/v1/boards/:id/freigaben/:email', async (req, antwort) => {
     freigaben.entfernen(n(req), req.params.id, req.params.email);
     live.zugriffGeaendert(req.params.id);
     return antwort.code(204).send();
   });
 
-  // "Rueckgaengig" nach "Aus meiner Bibliothek entfernen"
+  // "Undo" after "Remove from my library"
   app.post('/api/v1/boards/:id/freigaben/zurueck', async (req, antwort) => {
     freigaben.zurueckholen(n(req), req.params.id);
     return antwort.code(204).send();
   });
 
-  // Nachzuegler aus dem Offline-Puffer, wenn das Board nicht offen ist
+  // Stragglers from the offline buffer, when the board is not open
   app.post('/api/v1/boards/:id/ops', async (req, antwort) => {
     live.opsAnwenden(n(req), req.params.id, req.body?.ops);
     return antwort.code(204).send();

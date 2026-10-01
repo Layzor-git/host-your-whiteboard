@@ -1,13 +1,13 @@
-# Fuer ./deploy.sh: Web-App und API-Image kommen fertig vom PC,
-# auf dem Server wird nichts gebaut. Liegt dort in ~/apps/<DEPLOY_NAME>/.
+# For ./deploy.sh: web app and API image arrive ready-built from the PC,
+# nothing is built on the server. Lives there in ~/apps/<DEPLOY_NAME>/.
 
 services:
   web:
     image: caddy:2-alpine
     restart: unless-stopped
     ports:
-      # Nur lokal erreichbar. Niemals "8083:80" schreiben: Dann haengt
-      # die App am offenen Netz vorbei an Cloudflare Access.
+      # Local access only. Never write "8083:80": that puts the app on the
+      # open network, bypassing Cloudflare Access.
       - "127.0.0.1:8083:80"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
@@ -18,8 +18,8 @@ services:
   api:
     image: whiteboard-api:latest   # = <DEPLOY_NAME>-api from deploy.env
     restart: unless-stopped
-    # Kein ports: Der Container ist nur im Docker-Netz erreichbar.
+    # No ports: the container is only reachable inside the Docker network.
     env_file: .env
     volumes:
-      # SQLite und Uploads. Dieses Verzeichnis gehoert ins Backup.
+      # SQLite and uploads. Include this directory in your backups.
       - ./data:/data

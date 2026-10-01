@@ -1,22 +1,23 @@
-// Abmelden: erst Offenes zum Server schicken, dann alles Lokale loeschen und
-// die Sitzung beim Anmeldedienst beenden. Wohin das fuehrt, sagt der Server
-// in /me (Cloudflare: /cdn-cgi/access/logout, Entwicklung: /).
+// Sign-out: first send pending changes to the server, then delete
+// everything local and end the session with the sign-in service. Where
+// that leads is told by the server in /me (Cloudflare:
+// /cdn-cgi/access/logout, development: /).
 
 import { ausstehendeSenden, lokalLoeschen, nochOffen } from './speicher.js';
 
-/** Vor dem Abmelden: senden, was geht. Liefert, wie viel trotzdem offen bleibt. */
+/** Before signing out: send what we can. Returns how much is still pending. */
 export async function abmeldenVorbereiten() {
   try {
     await ausstehendeSenden();
   } catch {
-    // Offline: dann bleibt es eben offen, das sagt die Zahl
+    // Offline: then it stays pending, the number says so
   }
   return nochOffen();
 }
 
 export async function abmelden(ziel) {
   await lokalLoeschen();
-  try { sessionStorage.clear(); } catch { /* egal */ }
-  // Ein Server von vor dieser Angabe kennt nur Cloudflare
+  try { sessionStorage.clear(); } catch { /* ignore */ }
+  // A server from before this field only knows Cloudflare
   location.href = ziel ?? '/cdn-cgi/access/logout';
 }

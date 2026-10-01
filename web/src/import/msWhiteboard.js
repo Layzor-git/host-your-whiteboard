@@ -1,19 +1,19 @@
-// Import aus dem HTML-Export von Microsoft Whiteboard.
+// Import from the HTML export of Microsoft Whiteboard.
 //
-// Aufbau des Exports (Stand 2026): Jedes Element ist ein
+// Structure of the export (as of 2026): every element is a
 // <div class="anchor ..." data-whiteboard-type="InkGroup"
 //      style="left: Xpx; top: Ypx; transform: matrix(a, b, c, d, e, f)">
-// darin ein <svg viewBox="0 0 w h" width="w" height="h"> mit einem
-// <g class="inkStroke" transform="matrix(1/128, ...)"> pro Strich. Der Strich
-// steht dort doppelt:
-//   <path d="..." fill="rgba(...)">                 Umriss als Flaeche
-//   <polyline class="inkHitTestOverlay" points="..."> Mittellinie
-// Die Mittellinie wird unser Strich. Aus dem Abstand zum Umriss lesen wir
-// die Breite an jedem Punkt ab, das ergibt den Druckverlauf.
+// containing an <svg viewBox="0 0 w h" width="w" height="h"> with one
+// <g class="inkStroke" transform="matrix(1/128, ...)"> per stroke. The
+// stroke appears there twice:
+//   <path d="..." fill="rgba(...)">                 outline as an area
+//   <polyline class="inkHitTestOverlay" points="..."> center line
+// The center line becomes our stroke. From the distance to the outline we
+// read the width at every point, which gives the pressure curve.
 //
-// Absichtlich mit regulaeren Ausdruecken statt DOMParser: Der Export ist
-// maschinell erzeugt und gleichfoermig, und so laeuft der Import auch im
-// Test unter Node.
+// Deliberately with regular expressions instead of DOMParser: the export
+// is machine-generated and uniform, and this way the import also runs in
+// the test under Node.
 
 import { neueId } from '../zeichnen/elemente.js';
 import { alsHex, naechsteTinte } from '../zeichnen/farben.js';
@@ -41,8 +41,8 @@ function farbeLesen(text) {
 }
 
 /**
- * Die Kanten des Umrisses als Teilpfade [[x, y, ...], ...]. Boegen (A)
- * werden durch einige Zwischenpunkte ersetzt, das reicht fuer Abstaende.
+ * The edges of the outline as subpaths [[x, y, ...], ...]. Arcs (A) are
+ * replaced by a few intermediate points, which is enough for distances.
  */
 function umrissKanten(d, boegen = []) {
   const pfade = [];
@@ -61,7 +61,7 @@ function umrissKanten(d, boegen = []) {
       for (let i = 0; i + 6 < z.length; i += 7) {
         const x0 = akt[akt.length - 2], y0 = akt[akt.length - 1];
         const x1 = z[i + 5], y1 = z[i + 6], r = z[i];
-        // Kreisbogen durch Start und Ende mit Radius r, Richtung aus den Flags
+        // Circular arc through start and end with radius r, direction from the flags
         const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
         const h = Math.hypot(x1 - x0, y1 - y0) / 2;
         const tiefe = Math.sqrt(Math.max(0, r * r - h * h));
@@ -106,14 +106,14 @@ function median(werte) {
 }
 
 /**
- * Wandelt den HTML-Text eines Exports in Board-Daten um.
- * Liefert { daten: { version, hintergrund, elemente }, bericht }.
+ * Converts the HTML text of an export into board data.
+ * Returns { daten: { version, hintergrund, elemente }, bericht }.
  */
 export function msWhiteboardUmwandeln(html) {
   const elemente = [];
   const bericht = { striche: 0, textmarker: 0, uebersprungen: {} };
 
-  // Hintergrund: Farbe und ob ein Punktraster aktiv war.
+  // Background: color and whether a dot grid was active.
   const bg = html.match(/class="canvasBackgroundColor"[^>]*fill="([^"]+)"/)?.[1];
   const bgFarbe = farbeLesen(bg);
   const hell = bgFarbe.r + bgFarbe.g + bgFarbe.b > 380;
@@ -135,7 +135,7 @@ export function msWhiteboardUmwandeln(html) {
     const oben = +(kopf.match(/top:\s*(-?[\d.]+)px/)?.[1] ?? 0);
     const ankerM = matrix(kopf.match(/transform:\s*(matrix\([^)]*\))/)?.[1]);
 
-    // viewBox -> Pixel des svg (bisher immer 1:1, aber sicher ist sicher)
+    // viewBox -> svg pixels (always 1:1 so far, but better safe than sorry)
     const svg = teil.match(/<svg class="inkGroup[^"]*"[^>]*>/)?.[0] ?? '';
     const vb = svg.match(/viewBox="([^"]+)"/)?.[1].split(/\s+/).map(Number) ?? [0, 0, 1, 1];
     const sw = +(svg.match(/width="([\d.]+)"/)?.[1] ?? vb[2]);
@@ -151,7 +151,7 @@ export function msWhiteboardUmwandeln(html) {
       const gM = matrix(gTransform);
       const fill = farbeLesen(pfad?.[0].match(/fill="([^"]+)"/)?.[1]);
 
-      // lokale Koordinaten -> Welt
+      // local coordinates -> world
       const welt = (x, y) => {
         const [gx, gy] = anwenden(gM, x, y);
         const [ax, ay] = anwenden(ankerM, (gx - vb[0]) * sx, (gy - vb[1]) * sy);
@@ -164,12 +164,12 @@ export function msWhiteboardUmwandeln(html) {
       for (let i = 0; i + 1 < roh.length; i += 2) mitte.push(roh[i], roh[i + 1]);
       if (!mitte.length) continue;
 
-      // Halbe Breite je Punkt. Whiteboard rundet jede Ecke mit einem Bogen
-      // um den Punkt der Mittellinie, Radius = halbe Breite dort. Das ist
-      // die verlaessliche Quelle. Der Abstand zur naechsten Umrisskante
-      // taugt nur als Notbehelf: Laeuft ein Strich ueber sich selbst (das
-      // "p" hoch und wieder runter), liegt dort die Kante des anderen
-      // Strichteils, und die Breite kaeme viel zu klein heraus.
+      // Half width per point. Whiteboard rounds every corner with an arc
+      // around the center line point, radius = half width there. That is
+      // the reliable source. The distance to the nearest outline edge is
+      // only a fallback: if a stroke runs over itself (the "p" up and back
+      // down), the edge of the other part of the stroke lies there, and the
+      // width would come out far too small.
       const boegen = [];
       const kanten = pfad ? umrissKanten(pfad[1], boegen) : [];
       const halb = [];
@@ -182,8 +182,8 @@ export function msWhiteboardUmwandeln(html) {
         }
         halb.push(best !== null ? best * skala : null);
       }
-      // Punkte ohne Bogen (fast gerade Stellen): zwischen den Nachbarn
-      // mit Bogen interpolieren.
+      // Points without an arc (nearly straight spots): interpolate between
+      // the neighbors that have an arc.
       for (let i = 0; i < halb.length; i++) {
         if (halb[i] !== null) continue;
         let a = i - 1;
@@ -194,7 +194,7 @@ export function msWhiteboardUmwandeln(html) {
         else if (a >= 0) halb[i] = halb[a];
         else if (b < halb.length) halb[i] = halb[b];
       }
-      // Ganz ohne Boegen: Abstand zur Kante als Notbehelf.
+      // No arcs at all: distance to the edge as a fallback.
       for (let i = 0; i < halb.length; i++) {
         if (halb[i] !== null) continue;
         const d = abstandZuKanten(mitte[i * 2], mitte[i * 2 + 1], kanten);
@@ -203,9 +203,9 @@ export function msWhiteboardUmwandeln(html) {
       const gueltig = halb.filter((h) => h !== null);
       const ersatz = gueltig.length ? median(gueltig) : 1;
       for (let i = 0; i < halb.length; i++) if (halb[i] === null) halb[i] = ersatz;
-      // Die Grundbreite so waehlen, dass die breiteste Stelle genau bei
-      // vollem Druck liegt (breiteBeiDruck: 0.4 bis 1.6 mal Grundbreite).
-      // So passen Schwankungen bis Faktor 4 ohne Abschneiden hinein.
+      // Choose the base width so that the widest spot is exactly at full
+      // pressure (breiteBeiDruck: 0.4 to 1.6 times the base width). That
+      // way variations up to a factor of 4 fit without clipping.
       const maxHalb = Math.max(...halb);
       const variiert = maxHalb / Math.max(Math.min(...halb), 0.01) > 1.2 && halb.length > 2;
       const breite = variiert
@@ -217,10 +217,10 @@ export function msWhiteboardUmwandeln(html) {
       for (let i = 0; i < mitte.length; i += 2) {
         const [x, y] = welt(mitte[i], mitte[i + 1]);
         const n = punkte.length;
-        // Doppelte Punkte bringen dem Spline nichts
+        // Duplicate points do not help the spline
         if (n && Math.abs(punkte[n - 2] - x) < 0.01 && Math.abs(punkte[n - 1] - y) < 0.01) continue;
         punkte.push(runden(x), runden(y));
-        // Umkehrung von breiteBeiDruck(): breite * (0.4 + 1.2 p)
+        // Inverse of breiteBeiDruck(): breite * (0.4 + 1.2 p)
         const p = ((2 * halb[i / 2]) / breite - 0.4) / 1.2;
         druck.push(Math.round(Math.min(1, Math.max(0, p)) * 100) / 100);
       }
@@ -236,8 +236,8 @@ export function msWhiteboardUmwandeln(html) {
         punkte,
         druck: variiert && !textmarker ? druck : null,
       };
-      // Whiteboard verbindet die Punkte gerade, mit runden Ecken. Eine
-      // Kurve durch dieselben Punkte wuerde bei engen Buchstaben ausbeulen.
+      // Whiteboard connects the points with straight lines and round
+      // corners. A curve through the same points would bulge in tight letters.
       el.eckig = true;
       if (textmarker) el.textmarker = true;
       elemente.push(el);

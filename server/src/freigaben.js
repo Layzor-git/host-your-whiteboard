@@ -1,20 +1,20 @@
-// Wer darf was mit einem Board? Die eine Stelle, die das entscheidet.
+// Who may do what with a board? The one place that decides it.
 //
-//   besitzer    alles, auch teilen und loeschen
-//   bearbeiten  zeichnen, umbenennen, Hintergrund; nicht teilen, nicht loeschen
-//   ansehen     nur anschauen
+//   besitzer    everything, including sharing and deleting
+//   bearbeiten  draw, rename, background; no sharing, no deleting
+//   ansehen     view only
 //
-// Freigaben haengen an der E-Mail-Adresse. Wer eingeladen wird, muss auch
-// in der Cloudflare-Access-Richtlinie stehen, sonst kommt er gar nicht bis
-// hierher. Ein Board im Papierkorb ist fuer alle ausser dem Besitzer weg.
+// Shares are tied to the email address. Anyone invited must also be in
+// the Cloudflare Access policy, otherwise they never get this far. A board
+// in the trash is gone for everyone except the owner.
 
 import { datenbank, jetzt } from './db.js';
 import { KeinRecht, NichtGefunden, Ungueltig } from './fehler.js';
 
 const RECHTE = ['bearbeiten', 'ansehen'];
 
-// Kennfarben aus dem Design (tokens.ts, PEER_COLORS). Fest je Person, per
-// Hash der Nutzer-Id: Dieselbe Person hat ueberall dieselbe Farbe.
+// Peer colors from the design (tokens.ts, PEER_COLORS). Fixed per person,
+// via a hash of the user id: the same person has the same color everywhere.
 const KENNFARBEN = ['teal', 'coral', 'amber', 'green', 'pink', 'violet'];
 
 export function kennfarbe(nutzerId) {
@@ -23,7 +23,7 @@ export function kennfarbe(nutzerId) {
   return KENNFARBEN[h % KENNFARBEN.length];
 }
 
-/** Name, E-Mail, Kennfarbe einer Person; ohne Konto nur die E-Mail. */
+/** Name, email, peer color of a person; without an account only the email. */
 function person(email) {
   const n = datenbank().prepare('SELECT id, name, email FROM nutzer WHERE email = ?').get(email);
   return n
@@ -42,13 +42,13 @@ function besser(a, b) {
   return RANG[a] >= RANG[b] ? a : b;
 }
 
-// ---------------------------------------------------------------- Ordner
+// ---------------------------------------------------------------- Folders
 //
-// Ein geteilter Ordner gibt Zugriff auf alles darunter: Unterordner und die
-// Boards, die der BESITZER dort abgelegt hat (board_ort des Besitzers). Das
-// Recht ist das beste aus allen Freigaben auf dem Weg nach oben.
+// A shared folder grants access to everything below it: subfolders and the
+// boards the OWNER has placed there (the owner's board_ort). The permission
+// is the best one of all shares on the way up.
 
-/** Der Ordner und alle ueber ihm, nur aktive. Leer, wenn es ihn nicht gibt. */
+/** The folder and all folders above it, active ones only. Empty if it does not exist. */
 function ordnerKette(ordnerId) {
   const q = datenbank().prepare('SELECT * FROM ordner WHERE id = ? AND geloescht_am IS NULL');
   const kette = [];
@@ -62,7 +62,7 @@ function ordnerKette(ordnerId) {
   return kette;
 }
 
-/** Bestes Recht einer E-Mail ueber Ordnerfreigaben auf dem Weg nach oben. */
+/** Best permission of an email via folder shares on the way up. */
 function rechtUeberOrdner(email, ordnerId) {
   if (!email || !ordnerId) return null;
   const q = datenbank()
@@ -72,14 +72,14 @@ function rechtUeberOrdner(email, ordnerId) {
   return recht;
 }
 
-/** Wo der Besitzer das Board abgelegt hat (dort gelten Ordnerfreigaben). */
+/** Where the owner has placed the board (folder shares apply there). */
 function ortBeimBesitzer(board) {
   return datenbank()
     .prepare('SELECT ordner_id FROM board_ort WHERE nutzer_id = ? AND board_id = ?')
     .get(board.nutzer_id, board.id)?.ordner_id ?? null;
 }
 
-/** { board, recht } oder null, wenn der Nutzer das Board nicht sehen darf. */
+/** { board, recht } or null if the user may not see the board. */
 export function zugriff(nutzerId, boardId) {
   const board = datenbank().prepare('SELECT * FROM board WHERE id = ?').get(boardId);
   if (!board) return null;
@@ -93,7 +93,7 @@ export function zugriff(nutzerId, boardId) {
   return recht ? { board, recht } : null;
 }
 
-/** { ordner, recht } oder null. */
+/** { ordner, recht } or null. */
 export function ordnerZugriff(nutzerId, ordnerId) {
   const [ordner] = ordnerKette(ordnerId);
   if (!ordner) return null;
@@ -111,7 +111,7 @@ export function ordnerPruefen(nutzerId, ordnerId, benoetigt = 'ansehen') {
   return z;
 }
 
-/** Alle aktiven Ordner unter einem Ordner (mit ihm selbst), beim Besitzer. */
+/** All active folders below a folder (including itself), for the owner. */
 export function ordnerTeilbaum(ordnerId) {
   const wurzel = datenbank().prepare('SELECT nutzer_id FROM ordner WHERE id = ?').get(ordnerId);
   if (!wurzel) return [];
@@ -132,7 +132,7 @@ export function ordnerTeilbaum(ordnerId) {
   return alle.filter((o) => ids.has(o.id));
 }
 
-/** Boards, die der Besitzer irgendwo unter diesem Ordner abgelegt hat. */
+/** Boards the owner has placed anywhere below this folder. */
 export function boardsUnter(ordnerId) {
   const ordner = ordnerTeilbaum(ordnerId);
   if (!ordner.length) return [];
@@ -170,7 +170,7 @@ export function ordnerFreigabeSetzen(nutzerId, ordnerId, eingabe) {
   return ordnerFreigabenListe(nutzerId, ordnerId);
 }
 
-/** Der Besitzer entfernt jemanden, oder jemand entfernt den Ordner aus seiner Bibliothek. */
+/** The owner removes someone, or someone removes the folder from their library. */
 export function ordnerFreigabeEntfernen(nutzerId, ordnerId, email) {
   const z = ordnerPruefen(nutzerId, ordnerId);
   const ziel = String(email).toLowerCase().trim();
@@ -196,9 +196,9 @@ export function ordnerFreigabeZurueck(nutzerId, ordnerId) {
 }
 
 /**
- * Mit mir geteilte Ordner samt allem darunter, wie beim Besitzer
- * verschachtelt. Die obersten stehen bei mir ganz oben (elternId null).
- * Liefert { ordner: [...], boards: [...zeilen mit recht] }.
+ * Folders shared with me plus everything below them, nested as for the
+ * owner. The topmost ones are at the very top for me (elternId null).
+ * Returns { ordner: [...], boards: [...rows with recht] }.
  */
 export function ordnerMitMirGeteilt(nutzerId) {
   const email = emailVon(nutzerId);
@@ -214,7 +214,7 @@ export function ordnerMitMirGeteilt(nutzerId) {
   }
   const ergebnis = [];
   for (const o of ordner.values()) {
-    // Oberste Ebene: geteilte Wurzel, deren Eltern ich nicht sehe
+    // Top level: shared root whose parents I cannot see
     const elternSichtbar = o.eltern_id && ordner.has(o.eltern_id);
     ergebnis.push({
       id: o.id,
@@ -223,7 +223,7 @@ export function ordnerMitMirGeteilt(nutzerId) {
       erstelltAm: o.erstellt_am,
       recht: rechtUeberOrdner(email, o.id),
       besitzer: besitzerVon(o),
-      // Nur die geteilte Wurzel selbst laesst sich aus der Bibliothek entfernen
+      // Only the shared root itself can be removed from the library
       geteilteWurzel: oben.has(o.id) && !elternSichtbar,
     });
   }
@@ -241,7 +241,7 @@ export function ordnerMitMirGeteilt(nutzerId) {
   return { ordner: ergebnis, boards };
 }
 
-/** Personen je eigenem geteilten Ordner, fuer die Ordnerkachel. */
+/** People per own shared folder, for the folder tile. */
 export function personenJeOrdner(nutzerId) {
   const m = new Map();
   for (const z of datenbank()
@@ -254,7 +254,7 @@ export function personenJeOrdner(nutzerId) {
   return m;
 }
 
-/** Fuer den Teilen-Dialog eines Boards: wer es ueber welchen Ordner sieht. */
+/** For a board's share dialog: who sees it through which folder. */
 export function ueberOrdnerVon(board) {
   const ort = ortBeimBesitzer(board);
   if (!ort) return [];
@@ -264,9 +264,9 @@ export function ueberOrdnerVon(board) {
 }
 
 /**
- * Wie zugriff(), wirft aber: NichtGefunden, wenn das Board fuer den Nutzer
- * nicht existiert, KeinRecht, wenn es sichtbar ist, das Recht aber nicht
- * reicht. benoetigt: 'ansehen' | 'bearbeiten' | 'besitzer'
+ * Like zugriff(), but throws: NichtGefunden if the board does not exist
+ * for the user, KeinRecht if it is visible but the permission is not
+ * enough. benoetigt: 'ansehen' | 'bearbeiten' | 'besitzer'
  */
 export function pruefen(nutzerId, boardId, benoetigt = 'ansehen') {
   const z = zugriff(nutzerId, boardId);
@@ -277,7 +277,7 @@ export function pruefen(nutzerId, boardId, benoetigt = 'ansehen') {
   return z;
 }
 
-/** Personen, mit denen ein Board geteilt ist (ohne Besitzer). */
+/** People a board is shared with (without the owner). */
 export function personenVon(boardId) {
   return datenbank()
     .prepare(`SELECT email, recht, erstellt_am FROM board_freigabe
@@ -310,7 +310,7 @@ export function setzen(nutzerId, boardId, eingabe) {
   return liste(nutzerId, boardId);
 }
 
-/** Der Besitzer entfernt jemanden, oder jemand entfernt sich selbst. */
+/** The owner removes someone, or someone removes themselves. */
 export function entfernen(nutzerId, boardId, email) {
   const z = pruefen(nutzerId, boardId);
   const ziel = String(email).toLowerCase().trim();
@@ -320,14 +320,14 @@ export function entfernen(nutzerId, boardId, email) {
   if (z.recht === 'besitzer') {
     datenbank().prepare('DELETE FROM board_freigabe WHERE board_id = ? AND email = ?').run(boardId, ziel);
   } else {
-    // Sich selbst entfernen: nur markieren, damit "Rueckgaengig" geht
+    // Removing yourself: only mark it, so "Undo" works
     datenbank()
       .prepare('UPDATE board_freigabe SET entfernt_am = ? WHERE board_id = ? AND email = ?')
       .run(jetzt(), boardId, ziel);
   }
 }
 
-/** "Rueckgaengig" nach dem Selbst-Entfernen. */
+/** "Undo" after removing yourself. */
 export function zurueckholen(nutzerId, boardId) {
   const r = datenbank()
     .prepare(`UPDATE board_freigabe SET entfernt_am = NULL
@@ -336,7 +336,7 @@ export function zurueckholen(nutzerId, boardId) {
   if (!r.changes || !zugriff(nutzerId, boardId)) throw new NichtGefunden('board_not_found');
 }
 
-/** Mit mir geteilte Boards (Papierkorb des Besitzers ausgenommen). */
+/** Boards shared with me (except those in the owner's trash). */
 export function mitMirGeteilt(nutzerId) {
   return datenbank()
     .prepare(`SELECT b.*, f.recht, n.email AS besitzer_email, n.name AS besitzer_name
@@ -347,7 +347,7 @@ export function mitMirGeteilt(nutzerId) {
     .all(emailVon(nutzerId));
 }
 
-/** Personen je eigenem geteilten Board, fuer die Kachel in der Bibliothek. */
+/** People per own shared board, for the tile in the library. */
 export function personenJeBoard(nutzerId) {
   const m = new Map();
   for (const z of datenbank()

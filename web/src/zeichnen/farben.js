@@ -1,9 +1,9 @@
-// Paletten aus dem Design (tokens.ts). Striche speichern die Farb-ID, nie
-// den Hex-Wert. Erst beim Zeichnen wird aufgeloest, und zwar abhaengig von
-// der LEINWANDFARBE: Auf der dunklen "Tafel" wird Graphit hell. So bleibt
-// dieselbe Zeichnung auf jedem Hintergrund lesbar.
+// Palettes from the design (tokens.ts). Strokes store the color id, never
+// the hex value. It is only resolved when drawing, depending on the CANVAS
+// COLOR: on the dark "chalkboard" graphite becomes light. That way the
+// same drawing stays readable on every background.
 //
-// Eigene Farben werden als "#rrggbb" gespeichert und nicht umgeschaltet.
+// Custom colors are stored as "#rrggbb" and are not switched.
 
 export const INK = [
   { id: 'graphite', name: 'Graphit', light: '#1f2023', dark: '#ecebe6' },
@@ -47,12 +47,12 @@ export const PATTERN = {
 
 export const MUSTER_FARBE = { light: 'rgba(30,32,48,.17)', dark: 'rgba(255,255,255,.13)' };
 
-/** Deckkraft fuer einen Textmarker mit eigener Hex-Farbe. */
+/** Opacity for a highlighter with a custom hex color. */
 export const TEXTMARKER_EIGEN_DECKKRAFT = 0.45;
 
-// Tintenfarbe -> passende Markerfarbe (und zurueck), fuers Umfaerben einer
-// Auswahl mit Strichen und Markern. Ohne Gegenstueck bleibt die
-// Tintenfarbe, der Marker zeichnet sie dann durchscheinend.
+// Ink color -> matching highlighter color (and back), for recoloring a
+// selection with strokes and highlighters. Without a counterpart the ink
+// color stays, and the highlighter draws it translucent.
 const MARKER_ZU_TINTE = {
   'hl-yellow': 'yellow', 'hl-green': 'green', 'hl-pink': 'pink',
   'hl-blue': 'blue', 'hl-orange': 'orange', 'hl-purple': 'purple',
@@ -73,7 +73,7 @@ export function leinwand(id) {
   return CANVAS_BG.find((c) => c.id === id) ?? CANVAS_BG[0];
 }
 
-/** Farb-ID oder Hex in eine CSS-Farbe fuer die gegebene Leinwand. */
+/** Color id or hex into a CSS color for the given canvas. */
 export function farbeAufloesen(farbe, dunkel) {
   const f = NACH_ID.get(farbe);
   if (f) return dunkel ? f.dark : f.light;
@@ -85,7 +85,7 @@ function rgb(hex) {
   return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
 }
 
-/** Naechste Palettenfarbe, wenn sie nah genug ist, sonst null. */
+/** Nearest palette color if it is close enough, otherwise null. */
 export function naechsteTinte(r, g, b, grenze = 40) {
   let beste = null;
   let min = Infinity;

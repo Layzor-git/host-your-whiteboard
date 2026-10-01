@@ -1,6 +1,6 @@
-// Ein Board als Bild: PNG und SVG zum Herunterladen, dazu das kleine
-// Vorschaubild fuer die Bibliothek. Farben werden dabei fest aufgeloest,
-// passend zur Leinwandfarbe des Boards.
+// A board as an image: PNG and SVG for download, plus the small thumbnail
+// for the library. Colors are fully resolved, matching the board's canvas
+// color.
 
 import { alsSvg, bilderLaden, grenzen, zeichnen } from './elemente.js';
 import { leinwand } from './farben.js';
@@ -15,14 +15,14 @@ function inhalt(dok) {
 }
 
 function allesZeichnen(ctx, dok, dunkel) {
-  // Textmarker zuerst und verrechnet, wie auf der Leinwand
+  // Highlighter first and blended, as on the canvas
   ctx.globalCompositeOperation = dunkel ? 'screen' : 'multiply';
   for (const el of dok.elemente) if (el.textmarker) zeichnen(ctx, el, dunkel);
   ctx.globalCompositeOperation = 'source-over';
   for (const el of dok.elemente) if (!el.textmarker) zeichnen(ctx, el, dunkel);
 }
 
-/** PNG in doppelter Aufloesung, hoechstens 8000 Pixel pro Seite. */
+/** PNG at double resolution, at most 8000 pixels per side. */
 export async function alsPng(dok, rand = 32) {
   await bilderLaden(dok.elemente);
   const g = erweitert(inhalt(dok) ?? { x1: 0, y1: 0, x2: 400, y2: 300 }, rand);
@@ -58,9 +58,9 @@ ${tinte.join('\n')}
 }
 
 /**
- * Vorschaubild 4:3 mit durchsichtigem Grund: Die Bibliothek legt es auf
- * Leinwandfarbe und Muster, wie im Design. Zeigt das ganze Board, aber nie
- * groesser als in halber Groesse, damit wenig Inhalt nicht riesig wirkt.
+ * 4:3 thumbnail with a transparent background: the library puts it on the
+ * canvas color and pattern, as in the design. Shows the whole board, but
+ * never larger than half size, so little content does not look huge.
  */
 export function vorschauBild(dok, breite = 480, hoehe = 360) {
   const g = inhalt(dok);
@@ -73,7 +73,7 @@ export function vorschauBild(dok, breite = 480, hoehe = 360) {
   const w = Math.max(g.x2 - g.x1, 1);
   const h = Math.max(g.y2 - g.y1, 1);
   const skala = Math.min(0.5, (breite - 2 * rand) / w, (hoehe - 2 * rand) / h);
-  // Oben links ausrichten, wie eine Seite, die man durchblaettert
+  // Align top left, like a page you leaf through
   const ox = rand - g.x1 * skala + Math.max(0, (breite - 2 * rand - w * skala) / 2) * 0;
   const oy = rand - g.y1 * skala;
   ctx.setTransform(skala, 0, 0, skala, ox, oy);
@@ -82,13 +82,13 @@ export function vorschauBild(dok, breite = 480, hoehe = 360) {
   return webp.startsWith('data:image/webp') ? webp : c.toDataURL('image/png');
 }
 
-// ------------------------------------------------------ Eigenes Dateiformat
+// ---------------------------------------------------------- Own file format
 
 /**
- * Ein Board als Datei zum Sichern oder Weitergeben (.whiteboard, JSON).
- * Enthaelt alles, was es zum Wiederherstellen braucht; import/index.js
- * liest es wieder ein. Farben bleiben als Farb-IDs, damit das Board nach
- * dem Import genauso auf heller und dunkler Leinwand funktioniert.
+ * A board as a file for backup or sharing (.whiteboard, JSON). Contains
+ * everything needed to restore it; import/index.js reads it back in.
+ * Colors stay as color ids, so the board works the same on a light and a
+ * dark canvas after the import.
  */
 export const DATEI_FORMAT = 'whiteboard';
 
@@ -100,7 +100,7 @@ export function alsDatei(titel, daten, bilder) {
     exportiertAm: new Date().toISOString(),
     hintergrund: daten.hintergrund,
     elemente: daten.elemente,
-    // Bilder eingebettet als data:-URLs, damit die Datei fuer sich steht
+    // Images embedded as data: URLs, so the file stands on its own
     ...(bilder && Object.keys(bilder).length ? { bilder } : {}),
   };
   return new Blob([JSON.stringify(inhalt)], { type: 'application/json' });

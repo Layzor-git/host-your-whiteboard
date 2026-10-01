@@ -1,5 +1,5 @@
-// Die drei Anmeldearten (AUTH_MODE). Startet je einen Server gegen eine
-// frische Datenbank und prueft, wer er meint, dass anfragt.
+// The three sign-in modes (AUTH_MODE). Starts one server each against a
+// fresh database and checks who it thinks is asking.
 //   npm test
 
 import { spawn } from 'node:child_process';
@@ -10,7 +10,7 @@ import { join } from 'node:path';
 let bestanden = 0, gescheitert = 0;
 function pruefe(name, bedingung, zusatz = '') {
   if (bedingung) { console.log(`  ok   ${name}`); bestanden++; }
-  else { console.log(`  FEHL ${name} ${zusatz}`); gescheitert++; }
+  else { console.log(`  FAIL ${name} ${zusatz}`); gescheitert++; }
 }
 
 async function mitServer(port, env, pruefen) {
@@ -25,7 +25,7 @@ async function mitServer(port, env, pruefen) {
   const basis = `http://127.0.0.1:${port}/api/v1`;
   try {
     for (let i = 0; ; i++) {
-      try { if ((await fetch(`${basis}/health`)).ok) break; } catch { /* noch nicht da */ }
+      try { if ((await fetch(`${basis}/health`)).ok) break; } catch { /* not up yet */ }
       if (server.exitCode !== null || i > 60) return { gestartet: false, ausgabe };
       await new Promise((r) => setTimeout(r, 100));
     }
@@ -42,31 +42,31 @@ async function mitServer(port, env, pruefen) {
   }
 }
 
-console.log('\n--- Anmeldung ---');
+console.log('\n--- Sign-in ---');
 
 await mitServer(3101, { AUTH_MODE: 'single', SINGLE_USER_EMAIL: 'Ich@Zuhause.local' }, async (me) => {
   const a = await me();
-  pruefe('single: ohne jede Anmeldung ist man die eingestellte Person', a.status === 200 && a.daten.email === 'ich@zuhause.local');
-  pruefe('single: es gibt kein Abmelden', a.daten?.abmelden === null);
+  pruefe('single: without any sign-in you are the configured person', a.status === 200 && a.daten.email === 'ich@zuhause.local');
+  pruefe('single: there is no sign-out', a.daten?.abmelden === null);
 });
 
 await mitServer(3102, { AUTH_MODE: 'header', AUTH_HEADER: 'X-Forwarded-Email', LOGOUT_URL: 'https://auth.example.com/logout' }, async (me) => {
-  pruefe('header: ohne die Kopfzeile kommt niemand herein', (await me()).status === 401);
+  pruefe('header: without the header nobody gets in', (await me()).status === 401);
   const a = await me({ 'X-Forwarded-Email': 'Anna@Example.com' });
-  pruefe('header: die Kopfzeile des Proxys bestimmt die Person', a.status === 200 && a.daten.email === 'anna@example.com');
-  pruefe('header: Abmelden fuehrt zur eingestellten Adresse', a.daten?.abmelden === 'https://auth.example.com/logout');
+  pruefe('header: the proxy header determines the person', a.status === 200 && a.daten.email === 'anna@example.com');
+  pruefe('header: sign-out leads to the configured URL', a.daten?.abmelden === 'https://auth.example.com/logout');
 });
 
 await mitServer(3103, { AUTH_MODE: 'cloudflare', CF_ACCESS_TEAM_DOMAIN: 'x', CF_ACCESS_AUD: 'y' }, async (me) => {
-  pruefe('cloudflare: ohne Token kommt niemand herein', (await me()).status === 401);
-  pruefe('cloudflare: eine gefaelschte Kopfzeile hilft nicht', (await me({ 'Remote-Email': 'a@b.c', 'Cf-Access-Authenticated-User-Email': 'a@b.c' })).status === 401);
+  pruefe('cloudflare: without a token nobody gets in', (await me()).status === 401);
+  pruefe('cloudflare: a forged header does not help', (await me({ 'Remote-Email': 'a@b.c', 'Cf-Access-Authenticated-User-Email': 'a@b.c' })).status === 401);
 });
 
 const falsch = await mitServer(3104, { AUTH_MODE: 'offen' }, async () => {});
-pruefe('Ein unbekannter AUTH_MODE verhindert den Start', !falsch.gestartet && falsch.ausgabe.includes('AUTH_MODE'));
+pruefe('An unknown AUTH_MODE prevents startup', !falsch.gestartet && falsch.ausgabe.includes('AUTH_MODE'));
 
 const dev = await mitServer(3105, { DEV_EMAIL: 'a@b.c' }, async () => {});
-pruefe('DEV_EMAIL in Produktion verhindert den Start', !dev.gestartet);
+pruefe('DEV_EMAIL in production prevents startup', !dev.gestartet);
 
-console.log(`\n${bestanden} bestanden, ${gescheitert} gescheitert\n`);
+console.log(`\n${bestanden} passed, ${gescheitert} failed\n`);
 process.exit(gescheitert ? 1 : 0);

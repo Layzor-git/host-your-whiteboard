@@ -1,9 +1,9 @@
-// Ein einziger Ort fuer alle Server-Aufrufe.
+// One single place for all server calls.
 //
-// Wichtig hinter Cloudflare Access: Laeuft die Sitzung ab, antwortet
-// Cloudflare mit einer Weiterleitung zur Anmeldeseite, also mit HTML statt
-// JSON. Das erkennen wir hier zentral und melden es als "nicht angemeldet",
-// statt am kaputten JSON zu scheitern.
+// Important behind Cloudflare Access: when the session expires, Cloudflare
+// answers with a redirect to the sign-in page, i.e. with HTML instead of
+// JSON. We detect that here centrally and report it as "not signed in"
+// instead of failing on broken JSON.
 
 import { gibtEs, t } from './i18n/index.js';
 
@@ -20,35 +20,35 @@ export async function hole(pfad, optionen = {}) {
       ...optionen,
       body: koerper,
       headers: { Accept: 'application/json', ...kopf, ...optionen.headers },
-      // Cloudflare soll uns die Anmeldeseite nicht unterschieben.
+      // Cloudflare must not slip us the sign-in page.
       redirect: 'manual',
     });
   } catch {
     throw new KeinNetz(t('error.offline'));
   }
 
-  // Bei redirect:'manual' kommt eine Weiterleitung als undurchsichtige
-  // Antwort an.
+  // With redirect:'manual' a redirect arrives as an opaque
+  // response.
   if (antwort.type === 'opaqueredirect' || antwort.status === 302) {
     throw new NichtAngemeldet('Session expired');
   }
   if (antwort.status === 401) throw new NichtAngemeldet('Not signed in');
 
-  // Server nicht erreichbar heisst nicht immer "kein Netz": Laeuft der
-  // API-Container nicht, antwortet Caddy mit 502. Fuer die App ist das
-  // dasselbe wie offline.
+  // Server unreachable does not always mean "no network": if the API
+  // container is not running, Caddy answers with 502. For the app that is
+  // the same as offline.
   if (antwort.status >= 500) {
     throw new KeinNetz(t('error.serverDown', { status: antwort.status }));
   }
 
-  // Erfolg ohne Inhalt (loeschen, Vorschau speichern)
+  // Success without content (delete, save thumbnail)
   if (antwort.status === 204) return null;
 
   const typ = antwort.headers.get('content-type') ?? '';
 
-  // Erst jetzt auf HTML pruefen: Eine 200er-Antwort ohne JSON ist die
-  // Anmeldeseite. Ein Fehlercode mit HTML ist dagegen ein Server- oder
-  // Proxy-Problem und darf nicht als Abmeldung durchgehen.
+  // Only check for HTML now: a 200 response without JSON is the sign-in
+  // page. An error code with HTML, on the other hand, is a server or proxy
+  // problem and must not pass as a sign-out.
   if (!typ.includes('application/json')) {
     if (antwort.ok) throw new NichtAngemeldet('Received the login page instead of data');
     throw new Error(t('error.unexpected', { status: antwort.status }));
@@ -56,8 +56,8 @@ export async function hole(pfad, optionen = {}) {
 
   const daten = await antwort.json();
   if (!antwort.ok) {
-    // Der Server schickt einen festen Code und einen englischen Satz. Kennt
-    // die App den Code, zeigt sie ihn in der eingestellten Sprache.
+    // The server sends a fixed code and an English sentence. If the app
+    // knows the code, it shows it in the selected language.
     const f = new Error(serverMeldung(daten));
     f.code = daten.code;
     throw f;
@@ -65,13 +65,13 @@ export async function hole(pfad, optionen = {}) {
   return daten;
 }
 
-/** Text zu einer Fehlerantwort { code, text } des Servers (auch aus dem Live-Kanal). */
+/** Text for an error response { code, text } from the server (also from the live channel). */
 export function serverMeldung(daten) {
   if (daten?.code && gibtEs(`error.${daten.code}`)) return t(`error.${daten.code}`);
   return daten?.text ?? t('error.server');
 }
 
-/** Kurzform fuer schreibende Aufrufe: p('/dinge', 'POST', { ... }) */
+/** Shorthand for writing calls: p('/dinge', 'POST', { ... }) */
 const p = (pfad, methode, daten) => hole(pfad, { method: methode, daten });
 
 export const api = {
@@ -108,6 +108,6 @@ export const api = {
   boardAblegen: (id, ordnerId) => p(`/boards/${encodeURIComponent(id)}/ort`, 'PUT', { ordnerId }),
   bildUrl: (boardId, bildId) => `/api/v1/boards/${encodeURIComponent(boardId)}/bilder/${encodeURIComponent(bildId)}`,
   opsSenden: (id, ops) => p(`/boards/${encodeURIComponent(id)}/ops`, 'POST', { ops }),
-  /** WebSocket-Adresse fuer den Live-Abgleich, passend zu http/https */
+  /** WebSocket URL for live sync, matching http/https */
   liveUrl: (id) => `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/v1/boards/${encodeURIComponent(id)}/live`,
 };

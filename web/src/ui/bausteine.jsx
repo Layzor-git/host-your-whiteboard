@@ -1,5 +1,5 @@
-// Kleine Bausteine aus dem Design. Aussehen steht in styles.css, hier nur
-// Aufbau und Verhalten.
+// Small building blocks from the design. The look is in styles.css, only
+// structure and behavior here.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from './Icon.jsx';
@@ -49,7 +49,7 @@ export function Segmente({ optionen, wert, setzen, className = '' }) {
   );
 }
 
-/** Regler mit eigener Spur; das echte range-Feld liegt unsichtbar darueber. */
+/** Slider with its own track; the real range input lies invisibly on top. */
 export function Regler({ wert, min, max, schritt = 1, setzen, beschriftung, deaktiviert, hoch }) {
   const p = ((wert - min) / (max - min)) * 100;
   return (
@@ -96,7 +96,7 @@ export function MenuePunkt({ icon, text, kuerzel, gefahr, ...rest }) {
   );
 }
 
-/** Farbkreis; auf einer Flaeche in Leinwandfarbe (LeinwandPlatte). */
+/** Color dot; on a surface in the canvas color (LeinwandPlatte). */
 export function Farbfeld({ farbe, gewaehlt, name, dunkel, groesse = 26, ...rest }) {
   return (
     <button type="button" title={name} aria-label={name} aria-pressed={gewaehlt} className="farbfeld" {...rest}>
@@ -117,7 +117,7 @@ export function LeinwandPlatte({ leinwandFarbe = 'white', className = '', childr
   );
 }
 
-/** Muster als CSS-Hintergrund (Kacheln, Vorlagen, Hintergrund-Popover). */
+/** Pattern as a CSS background (tiles, templates, background popover). */
 export function musterStil(muster, schritt, dunkel) {
   const f = dunkel ? 'rgba(255,255,255,.13)' : 'rgba(30,32,48,.17)';
   if (muster === 'dots') {
@@ -194,7 +194,7 @@ export function useToast() {
   return [toast, zeigen];
 }
 
-/** "5 min. ago", "yesterday", "3 weeks ago" bzw. "vor 5 Min.", "gestern" */
+/** "5 min. ago", "yesterday", "3 weeks ago" or "vor 5 Min.", "gestern" */
 export function zeitText(iso) {
   if (!iso) return '';
   const s = sprache();

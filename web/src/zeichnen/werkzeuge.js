@@ -1,9 +1,9 @@
-// Eine Geste von "Stift runter" bis "Stift hoch". Jede Aktion kennt:
+// One gesture from "pen down" to "pen up". Every action knows:
 //
-//   bewegen(ereignisse, letztes)  ereignisse = alle Zwischenpunkte
-//   vorschau(ctx)                 malt auf die obere Ebene, Weltkoordinaten
-//   ende()                        Ergebnis ins Dokument
-//   abbrechen()                   verwerfen (z. B. zweiter Finger kommt dazu)
+//   bewegen(ereignisse, letztes)  ereignisse = all intermediate points
+//   vorschau(ctx)                 paints on the top layer, world coordinates
+//   ende()                        result into the document
+//   abbrechen()                   discard (e.g. a second finger joins)
 
 import { StrichBauer } from './glaettung.js';
 import {
@@ -13,11 +13,11 @@ import {
 import { farbeAufloesen } from './farben.js';
 import { runden, ueberlappen } from './geometrie.js';
 
-export const WINKEL_RASTER = Math.PI / 12; // 15 Grad
-/** Trefferradius des Strich-Radierers in Bildschirmpixeln. */
+export const WINKEL_RASTER = Math.PI / 12; // 15 degrees
+/** Hit radius of the stroke eraser in screen pixels. */
 export const STRICH_RADIERER_PX = 7;
 
-/** Strg (Mac: Cmd) rastet Winkel ein: gerade Linien, Linien-Werkzeug, Drehen. */
+/** Ctrl (Mac: Cmd) snaps angles: straight lines, line tool, rotation. */
 function rastet(e) {
   return e.ctrlKey || e.metaKey;
 }
@@ -32,7 +32,7 @@ function einrasten(sx, sy, x, y) {
   return { x: sx + Math.cos(a) * l, y: sy + Math.sin(a) * l, winkel: a };
 }
 
-// ------------------------------------------------------------------ Stift
+// -------------------------------------------------------------------- Pen
 
 export class StiftAktion {
   constructor(ed, e) {
@@ -45,9 +45,9 @@ export class StiftAktion {
     this.bauer = new StrichBauer(ed.einst, ed.kamera.z);
     this.start = ed.welt(e);
     this.gerade = null;
-    // Die Vorschau liegt auf einer eigenen Ebene. Damit der Marker schon
-    // beim Zeichnen wie spaeter mit der Tinte darunter verrechnet wird,
-    // uebernimmt der Browser das Mischen der beiden Ebenen.
+    // The preview lives on its own layer. So that the highlighter blends
+    // with the ink below it while drawing just as it will later, the
+    // browser does the blending of the two layers.
     if (this.textmarker) {
       ed.renderer.oben.style.mixBlendMode = ed.renderer.dunkel ? 'screen' : 'multiply';
     }
@@ -56,16 +56,16 @@ export class StiftAktion {
 
   #punkt(e) {
     const w = this.ed.welt(e);
-    // Manche Tabletts melden beim Aufsetzen noch Druck 0.
+    // Some tablets still report pressure 0 on touchdown.
     const p = this.mitDruck ? Math.max(0.05, e.pressure || 0.5) : 0.5;
     this.bauer.hinzu(w.x, w.y, p);
   }
 
   bewegen(liste, letztes) {
     for (const e of liste) this.#punkt(e);
-    // Shift (auch mitten im Strich) macht daraus eine Gerade vom Anfang
-    // bis zum Stift, in beliebigem Winkel. Mit Strg dazu rastet sie in
-    // 15-Grad-Schritten ein.
+    // Shift (even in the middle of a stroke) turns it into a straight line
+    // from the start to the pen, at any angle. Adding Ctrl snaps it in
+    // 15-degree steps.
     if (letztes.shiftKey) {
       const w = this.ed.welt(letztes);
       this.eingerastet = rastet(letztes);
@@ -73,7 +73,7 @@ export class StiftAktion {
     }
   }
 
-  /** Der Strich, wie er gerade aussieht, fuer andere Geraete (Live). */
+  /** The stroke as it looks right now, for other devices (live). */
   get entwurf() {
     const el = { id: 'entwurf', typ: 'strich', z: 0, farbe: this.farbe, breite: this.breite, druck: null };
     if (this.textmarker) el.textmarker = true;
@@ -81,8 +81,8 @@ export class StiftAktion {
       el.punkte = [runden(this.start.x), runden(this.start.y), runden(this.gerade.x), runden(this.gerade.y)];
       return el;
     }
-    // Jeden zweiten geglaetteten Punkt, auf 0.1 gerundet: sieht gleich
-    // aus und haelt die Nachrichten klein
+    // Every second smoothed point, rounded to 0.1: looks the same and
+    // keeps the messages small
     const G = this.bauer.glatt;
     const n = G.length / 3;
     const punkte = [];
@@ -97,7 +97,7 @@ export class StiftAktion {
     return el;
   }
 
-  /** Fuer den Hinweis "45° eingerastet" in der Oberflaeche. */
+  /** For the "snapped to 45°" hint in the UI. */
   get hilfslinie() {
     if (!this.gerade) return null;
     let grad = Math.round((-this.gerade.winkel * 180) / Math.PI);
@@ -139,7 +139,7 @@ export class StiftAktion {
     ctx.globalAlpha = 1;
   }
 
-  // Waagerechte Bezugslinie, Winkelbogen und Endpunkt wie im Design (2f).
+  // Horizontal reference line, angle arc and end point as in the design (2f).
   #hilfslinien(ctx) {
     const z = this.ed.kamera.z;
     const { x: sx, y: sy } = this.start;
@@ -198,7 +198,7 @@ export class StiftAktion {
   abbrechen() {}
 }
 
-// ------------------------------------------------------------------ Formen
+// ------------------------------------------------------------------ Shapes
 
 export class FormAktion {
   constructor(ed, e) {
@@ -212,12 +212,12 @@ export class FormAktion {
     const w = this.ed.welt(letztes);
     const { x: sx, y: sy } = this.start;
     if (this.stil.art === 'linie' || this.stil.art === 'pfeil') {
-      // Linie und Pfeil sind schon gerade; Strg rastet den Winkel ein
+      // Line and arrow are already straight; Ctrl snaps the angle
       this.ziel = rastet(letztes) ? einrasten(sx, sy, w.x, w.y) : w;
     } else if (!letztes.shiftKey) {
       this.ziel = w;
     } else {
-      // Quadrat, Kreis, gleich breites wie hohes Dreieck
+      // Square, circle, triangle as wide as it is high
       const d = Math.max(Math.abs(w.x - sx), Math.abs(w.y - sy));
       this.ziel = { x: sx + Math.sign(w.x - sx || 1) * d, y: sy + Math.sign(w.y - sy || 1) * d };
     }
@@ -261,7 +261,7 @@ export class FormAktion {
   abbrechen() {}
 }
 
-// ---------------------------------------------------------------- Radierer
+// ------------------------------------------------------------------ Eraser
 
 export class RadiererAktion {
   constructor(ed, e) {
@@ -294,8 +294,8 @@ export class RadiererAktion {
         const stuecke = punktRadieren(el, a.x, a.y, b.x, b.y, r);
         if (!stuecke) continue;
         this.tx.entfernen(id);
-        // Die Stuecke erben die Ebene des Originals. Gleiches z ist
-        // erlaubt, sie ueberlappen sich ja nicht.
+        // The pieces inherit the layer of the original. Equal z is
+        // allowed, they do not overlap after all.
         for (const s of stuecke) {
           s.z = el.z;
           this.tx.hinzufuegen(s);
@@ -341,10 +341,10 @@ export class HandAktion {
 // ------------------------------------------------------------------- Lasso
 
 /**
- * Auswahl ziehen: als Rechteck oder als freies Lasso (art). Mit Shift kommt
- * das Neue zur bisherigen Auswahl dazu; ein Antippen mit Shift nimmt ein
- * einzelnes Element dazu oder wieder raus. Der Pfeil benutzt das Rechteck,
- * wenn man auf leerer Flaeche zieht.
+ * Drag a selection: as a rectangle or as a freehand lasso (art). With
+ * Shift the new items are added to the existing selection; a tap with
+ * Shift adds or removes a single element. The pointer uses the rectangle
+ * when dragging on an empty area.
  */
 export class LassoAktion {
   constructor(ed, e, art = ed.stile.auswahl?.art) {
@@ -369,7 +369,7 @@ export class LassoAktion {
     if (letztes.shiftKey) this.dazu = true;
   }
 
-  /** Umriss der Auswahl in Weltkoordinaten */
+  /** Outline of the selection in world coordinates */
   get #umriss() {
     if (!this.rechteck) return this.poly;
     const { x: x1, y: y1 } = this.start;
@@ -397,7 +397,7 @@ export class LassoAktion {
   ende() {
     const dok = this.ed.dok;
     const bisher = this.dazu ? [...this.ed.auswahl] : [];
-    // Nur getippt statt gezogen: das oberste Element unter dem Stift
+    // Just tapped instead of dragged: the topmost element under the pen
     if (!this.weit) {
       const { x, y } = this.start;
       const oben = this.ed.elementBei(x, y);
@@ -431,16 +431,16 @@ export class LassoAktion {
   abbrechen() {}
 }
 
-// ---------------------------------------------------- Auswahl verwandeln
+// --------------------------------------------------- Transform selection
 
 /**
- * Verschieben, Skalieren oder Drehen der Auswahl. Waehrend der Geste
- * bleiben die Elemente unveraendert im Dokument, sind aber ausgeblendet;
- * die obere Ebene zeigt sie mit der laufenden Abbildung. Erst beim
- * Loslassen entstehen die neuen Elemente, in einer Transaktion.
+ * Move, scale or rotate the selection. During the gesture the elements
+ * stay unchanged in the document but are hidden; the top layer shows them
+ * with the current transform. Only on release are the new elements
+ * created, in one transaction.
  *
- * griff: 'mitte' (verschieben), 'drehen' oder eine Himmelsrichtung
- * n, ne, e, se, s, sw, w, nw fuer die Anfasser.
+ * griff: 'mitte' (move), 'drehen' or a compass direction
+ * n, ne, e, se, s, sw, w, nw for the handles.
  */
 export class TransformAktion {
   constructor(ed, e, griff) {
@@ -476,7 +476,7 @@ export class TransformAktion {
       this.M = [c, s, -s, c, cx - c * cx + s * cy, cy - s * cx - c * cy];
       return;
     }
-    // Skalieren um die gegenueberliegende Seite/Ecke
+    // Scale around the opposite side/corner
     const h = this.griff;
     const breite = Math.max(g.x2 - g.x1, 1e-6);
     const hoehe = Math.max(g.y2 - g.y1, 1e-6);
@@ -484,8 +484,8 @@ export class TransformAktion {
     const ay = h.includes('n') ? g.y2 : h.includes('s') ? g.y1 : cy;
     let sx = h.includes('e') ? (g.x2 + dx - g.x1) / breite : h.includes('w') ? (g.x2 - (g.x1 + dx)) / breite : 1;
     let sy = h.includes('s') ? (g.y2 + dy - g.y1) / hoehe : h.includes('n') ? (g.y2 - (g.y1 + dy)) / hoehe : 1;
-    // Ecken skalieren gleichmaessig, so verzerrt Handschrift nicht.
-    // Shift an einer Ecke erlaubt freies Verzerren.
+    // Corners scale uniformly, so handwriting is not distorted.
+    // Shift on a corner allows free distortion.
     if (h.length === 2 && !letztes.shiftKey) {
       const f = Math.abs(sx) > Math.abs(sy) ? sx : sy;
       sx = f;
@@ -497,7 +497,7 @@ export class TransformAktion {
     this.M = [sx, 0, 0, sy, ax - sx * ax, ay - sy * ay];
   }
 
-  /** Rahmen fuer die Oberflaeche: urspruengliche Grenzen plus Abbildung. */
+  /** Frame for the UI: original bounds plus transform. */
   get rahmen() {
     return { g: this.g, M: this.M, winkel: this.winkel, griff: this.griff };
   }
@@ -547,12 +547,12 @@ export class TransformAktion {
   }
 }
 
-// ------------------------------------------------- Linienende verschieben
+// ---------------------------------------------------------- Move line end
 
 /**
- * Ein Ende einer Linie oder eines Pfeils ziehen (ende 1 = x1/y1, 2 = x2/y2),
- * das andere bleibt stehen. Strg rastet den Winkel in 15°-Schritten ein,
- * Shift behaelt die Richtung und aendert nur die Laenge.
+ * Drag one end of a line or arrow (ende 1 = x1/y1, 2 = x2/y2), the other
+ * stays put. Ctrl snaps the angle in 15° steps, Shift keeps the direction
+ * and only changes the length.
  */
 export class EndpunktAktion {
   constructor(ed, e, seite) {
@@ -565,7 +565,7 @@ export class EndpunktAktion {
     ed.renderer.ganz();
   }
 
-  /** Das feste Ende */
+  /** The fixed end */
   get #fest() {
     const o = this.original;
     return this.seite === 1 ? { x: o.x2, y: o.y2 } : { x: o.x1, y: o.y1 };
@@ -577,7 +577,7 @@ export class EndpunktAktion {
     let p = frei(f.x, f.y, w.x, w.y);
     this.eingerastet = false;
     if (letztes.shiftKey) {
-      // Nur verlaengern oder verkuerzen: auf die bisherige Richtung legen
+      // Only lengthen or shorten: project onto the previous direction
       const o = this.original;
       const bewegt = this.seite === 1 ? { x: o.x1, y: o.y1 } : { x: o.x2, y: o.y2 };
       const a = Math.atan2(bewegt.y - f.y, bewegt.x - f.x);

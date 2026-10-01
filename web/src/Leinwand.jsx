@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Editor } from './zeichnen/editor.js';
 
-// Duenne Huelle: React legt nur den Behaelter an, gezeichnet wird ohne React.
+// Thin shell: React only creates the container, drawing happens without React.
 export default function Leinwand({ onBereit, optionen }) {
   const behaelter = useRef(null);
 
@@ -12,7 +12,7 @@ export default function Leinwand({ onBereit, optionen }) {
       onBereit?.(null);
       editor.zerstoeren();
     };
-    // Absichtlich leer: Der Editor soll genau einmal entstehen.
+    // Empty on purpose: the editor should be created exactly once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

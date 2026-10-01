@@ -1,24 +1,24 @@
 /* Whiteboard – Design Tokens
-   Theme-Klasse auf <html>: .wb-light | .wb-dark
-   Tinten-Klasse auf dem Leinwand-Container: .wb-inklight | .wb-inkdark (abhängig von der Leinwandfarbe, NICHT vom UI-Theme) */
+   Theme class on <html>: .wb-light | .wb-dark
+   Ink class on the canvas container: .wb-inklight | .wb-inkdark (depends on the canvas color, NOT on the UI theme) */
 
 :root {
   --font-ui: 'Onest', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  --radius-xs: 6px;    /* Kbd-Chip */
-  --radius-sm: 10px;   /* Eingabe inline, Mini-Button */
+  --radius-xs: 6px;    /* kbd chip */
+  --radius-sm: 10px;   /* inline input, mini button */
   --radius-md: 12px;   /* ToolButton, MenuItem, Button */
-  --radius-lg: 18px;   /* Top-Leisten, Menüs */
-  --radius-bar: 22px;  /* Haupt-Werkzeugleiste */
-  --radius-pop: 20px;  /* Werkzeug-Popover */
-  --radius-xl: 24px;   /* Dialoge */
+  --radius-lg: 18px;   /* top bars, menus */
+  --radius-bar: 22px;  /* main toolbar */
+  --radius-pop: 20px;  /* tool popover */
+  --radius-xl: 24px;   /* dialogs */
   --radius-full: 999px;
 
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
   --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-12: 48px;
 
-  --hit: 44px;         /* minimale Trefferfläche, überall */
+  --hit: 44px;         /* minimum hit area, everywhere */
 
   --z-canvas: 0; --z-ink: 1; --z-selection: 10; --z-chrome: 20; --z-popover: 30;
   --z-menu: 40; --z-dialog: 50; --z-toast: 60; --z-tooltip: 70;
@@ -56,7 +56,7 @@
   --ui-scrim:rgba(0,0,0,.5); --ui-toast:#eeeef0; --ui-on-toast:#18191c;
 }
 
-/* Tinte auf heller Leinwand (alle ≥ 3:1 gegen #fbfbfa) */
+/* Ink on a light canvas (all ≥ 3:1 against #fbfbfa) */
 .wb-inklight {
   --canvas-pattern:rgba(30,32,48,.17); --hl-blend:multiply;
   --ink-graphite:#1f2023; --ink-grey:#767982; --ink-red:#d8352c; --ink-orange:#e36c0a;
@@ -67,7 +67,7 @@
   --ink-hl-orange:rgba(255,165,70,.45); --ink-hl-purple:rgba(185,145,255,.42);
 }
 
-/* Tinte auf dunkler Leinwand „Tafel“ (#1f2124) */
+/* Ink on the dark “chalkboard” canvas (#1f2124) */
 .wb-inkdark {
   --canvas-pattern:rgba(255,255,255,.13); --hl-blend:screen;
   --ink-graphite:#ecebe6; --ink-grey:#a5a8af; --ink-red:#ff7a6c; --ink-orange:#ffa155;
@@ -79,20 +79,20 @@
 }
 
 
-/* ───────── V2: Teilen · Text & Bild · Ordner ───────── */
+/* ───────── V2: Sharing · Text & Image · Folders ───────── */
 
 :root {
-  --avatar-sm: 26px;   /* Kachel-Vorschau */
-  --avatar-md: 32px;   /* Anwesenheit oben rechts */
-  --avatar-lg: 36px;   /* Zeile im Teilen-Dialog */
+  --avatar-sm: 26px;   /* tile preview */
+  --avatar-md: 32px;   /* presence, top right */
+  --avatar-lg: 36px;   /* row in the share dialog */
   --avatar-overlap: -8px;
   --presence-fade-delay: 1500ms; --presence-fade: 500ms;
-  --text-s: 16px; --text-m: 24px; --text-l: 36px; --text-xl: 56px;       /* Welt-px */
+  --text-s: 16px; --text-m: 24px; --text-l: 36px; --text-xl: 56px;       /* world px */
   --sticky-text-s: 16px; --sticky-text-m: 20px; --sticky-text-l: 26px; --sticky-text-xl: 34px;
-  --sticky-ink: #1f2023;  /* Text auf Haftnotiz, unabhängig von der Leinwand */
+  --sticky-ink: #1f2023;  /* text on a sticky note, independent of the canvas */
 }
 
-/* Kennfarben pro Person (UI-Theme, nicht Leinwand). Text darauf: --on-peer */
+/* Peer colors per person (UI theme, not canvas). Text on them: --on-peer */
 .wb-light {
   --peer-teal:oklch(0.5 0.09 195); --peer-coral:oklch(0.55 0.17 32); --peer-amber:oklch(0.55 0.12 65);
   --peer-green:oklch(0.5 0.12 150); --peer-pink:oklch(0.54 0.18 355); --peer-violet:oklch(0.5 0.16 305);
@@ -104,7 +104,7 @@
   --on-peer:#141518;
 }
 
-/* Haftnotizen (Leinwand-abhängig wie die Tinte) */
+/* Sticky notes (canvas-dependent like the ink) */
 .wb-inklight {
   --sticky-yellow:#fff0a6; --sticky-green:#d3f2cc; --sticky-pink:#ffd6e7;
   --sticky-blue:#d3e8ff; --sticky-orange:#ffdcbc; --sticky-purple:#e4d9ff;

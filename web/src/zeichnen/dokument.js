@@ -1,9 +1,9 @@
-// Der Inhalt eines Boards: alle Elemente nach z sortiert, ein Raster zum
-// schnellen Finden und der Verlauf fuer Rueckgaengig/Wiederholen.
+// The content of a board: all elements sorted by z, a grid for quick
+// lookup and the history for undo/redo.
 //
-// Geaendert wird nur ueber eine Transaktion. Sie fasst alles zusammen, was
-// eine Geste bewirkt, damit ein Strg+Z genau eine Geste zuruecknimmt, auch
-// wenn der Radierer dabei zwanzig Striche zerlegt hat.
+// Changes only happen through a transaction. It bundles everything a
+// gesture causes, so that one Ctrl+Z undoes exactly one gesture, even if
+// the eraser split twenty strokes in the process.
 
 import { grenzen } from './elemente.js';
 
@@ -11,7 +11,7 @@ const ZELLE = 256;
 const MAX_ZELLEN = 256;
 const MAX_VERLAUF = 500;
 
-/** Gleichmaessiges Raster: welche Elemente liegen ungefaehr wo. */
+/** Uniform grid: which elements are roughly where. */
 class Raster {
   zellen = new Map();
   gross = new Set();
@@ -82,7 +82,7 @@ class Transaktion {
   entfernen(id) {
     const el = this.dok.get(id);
     if (!el) return;
-    // Was in derselben Geste erst entstanden ist, war vorher nie da.
+    // Whatever was only created in the same gesture was never there before.
     if (this.hinzu.has(id)) this.hinzu.delete(id);
     else if (!this.weg.has(id)) this.weg.set(id, el);
     this.dok._loeschen(id);
@@ -102,7 +102,7 @@ class Transaktion {
   }
 }
 
-/** Felder mit Unterstrich sind Laufzeitkram und werden nie gespeichert. */
+/** Fields with an underscore are runtime stuff and are never saved. */
 export function ohneLaufzeit(el) {
   const o = {};
   for (const k in el) if (k[0] !== '_') o[k] = el[k];
@@ -120,13 +120,13 @@ export class Dokument {
 
   /**
    * fn(ereignis), art:
-   *   hinzu, weg     ein Element (waehrend einer Transaktion)
-   *   verlauf        Transaktion abgeschlossen
-   *   umbau          Rueckgaengig, Wiederholen, Hintergrund
-   *   geladen        frisch geladen, nichts zu speichern
-   *   fremd          Aenderung von einem anderen Geraet, nichts zu senden
-   *   ops            { ops }: was sich geaendert hat, fuer den Live-Abgleich.
-   *                  Kommt nur bei eigenen Aenderungen, nie bei fremden.
+   *   hinzu, weg     an element (during a transaction)
+   *   verlauf        transaction completed
+   *   umbau          undo, redo, background
+   *   geladen        freshly loaded, nothing to save
+   *   fremd          change from another device, nothing to send
+   *   ops            { ops }: what has changed, for live sync.
+   *                  Only for own changes, never for others'.
    */
   beiAenderung(fn) {
     this.#hoerer.add(fn);
@@ -149,7 +149,7 @@ export class Dokument {
     return n ? Math.floor(this.elemente[n - 1].z) + 1 : 0;
   }
 
-  /** Ids aller Elemente, deren Rasterzellen g beruehren. Grob, danach genau pruefen. */
+  /** Ids of all elements whose grid cells touch g. Coarse, check precisely afterwards. */
   finden(g) {
     return this.#raster.abfrage(g);
   }
@@ -178,7 +178,7 @@ export class Dokument {
     this.#opsMelden(tx.hinzu, tx.weg);
   }
 
-  /** Jetzt da: alles aus "da". Weg: was nur in "weg" steht. */
+  /** Present now: everything in "da". Gone: what is only in "weg". */
   #opsMelden(da, weg) {
     const ops = [];
     for (const id of weg.keys()) if (!da.has(id)) ops.push({ art: 'loeschen', id });
@@ -187,8 +187,8 @@ export class Dokument {
   }
 
   /**
-   * Aenderungen von einem anderen Geraet uebernehmen. Sie landen nicht im
-   * eigenen Verlauf: Strg+Z nimmt nur zurueck, was man selbst getan hat.
+   * Apply changes from another device. They do not end up in the own
+   * history: Ctrl+Z only undoes what you did yourself.
    */
   fremdAnwenden(ops) {
     for (const op of ops) {
@@ -205,9 +205,8 @@ export class Dokument {
   }
 
   /**
-   * Den eigenen Stand an einen vollstaendigen Stand vom Server angleichen,
-   * ohne Verlauf und Ansicht wegzuwerfen. Nur was sich unterscheidet, wird
-   * getauscht.
+   * Align the own state with a complete state from the server, without
+   * throwing away history and view. Only what differs is swapped.
    */
   abgleichen(elemente, hintergrund) {
     const ops = [];
@@ -224,7 +223,7 @@ export class Dokument {
     if (ops.length) this.fremdAnwenden(ops);
   }
 
-  /** Zum Speichern: nur Felder ohne Unterstrich, die sind Laufzeitkram. */
+  /** For saving: only fields without an underscore, those are runtime stuff. */
   alsDaten() {
     return {
       version: 1,
@@ -241,8 +240,8 @@ export class Dokument {
     this.#vor = [];
     if (daten?.hintergrund) this.hintergrund = { ...this.hintergrund, ...daten.hintergrund };
     for (const el of daten?.elemente ?? []) this.#einfuegen(el);
-    // Eigene Art: Frisch Geladenes ist keine Aenderung, die gespeichert
-    // werden muesste.
+    // Its own kind: freshly loaded content is not a change that would need
+    // saving.
     this.#melden({ art: 'geladen' });
   }
 
@@ -252,7 +251,7 @@ export class Dokument {
     this.#melden({ art: 'ops', ops: [{ art: 'hintergrund', wert: this.hintergrund }] });
   }
 
-  // ---- nur fuer Transaktion
+  // ---- for Transaktion only
 
   _einfuegen(el) {
     this.#einfuegen(el);
@@ -273,7 +272,7 @@ export class Dokument {
     this.#opsMelden(tx.hinzu, tx.weg);
   }
 
-  // ---- intern
+  // ---- internal
 
   #erstesUeber(z) {
     let lo = 0;
@@ -287,7 +286,7 @@ export class Dokument {
   }
 
   #einfuegen(el) {
-    // Nie zweimal dieselbe id, auch wenn ein anderes Geraet dazwischenfunkt
+    // Never the same id twice, even if another device interferes
     if (this.#nachId.has(el.id)) this.#loeschen(el.id);
     this.elemente.splice(this.#erstesUeber(el.z), 0, el);
     this.#nachId.set(el.id, el);
@@ -299,7 +298,7 @@ export class Dokument {
     if (!el) return null;
     let i = this.#erstesUeber(el.z) - 1;
     while (i >= 0 && this.elemente[i] !== el) i--;
-    // Ohne gueltiges z (fremde oder alte Daten) greift die Suche nicht
+    // Without a valid z (foreign or old data) the search does not work
     if (i < 0) i = this.elemente.indexOf(el);
     if (i >= 0) this.elemente.splice(i, 1);
     this.#nachId.delete(id);

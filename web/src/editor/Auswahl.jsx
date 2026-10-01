@@ -4,9 +4,9 @@ import { Farbfeld, LeinwandPlatte } from '../ui/bausteine.jsx';
 import { useT } from '../i18n/index.js';
 import { farbeAufloesen, INK } from '../zeichnen/farben.js';
 
-// Auswahlrahmen (Design 2e): Rahmen in Akzentfarbe, acht Anfasser, ein
-// Dreh-Anfasser darueber, darunter die Kontextleiste. Die Anfasser sind
-// nur 12 px gross, ihre Trefferflaeche aber 44 px.
+// Selection frame (design 2e): frame in the accent color, eight handles, a
+// rotate handle above, the context bar below. The handles are only 12 px
+// in size, but their hit area is 44 px.
 
 const ANFASSER = [
   ['nw', 0, 0], ['n', 50, 0], ['ne', 100, 0],
@@ -18,7 +18,7 @@ const CURSOR = {
   n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize',
 };
 
-// Strichstaerken fuer Formen in der Auswahl: ein Tipp, ein Rueckgaengig-Schritt
+// Stroke widths for shapes in the selection: one tap, one undo step
 const FORM_BREITEN = [1, 2, 3, 5, 8, 12];
 
 export default function Auswahl({ a, ed, dunkel, leinwandFarbe, hoehe, bildErsetzen, formBreiteGewaehlt }) {
@@ -35,8 +35,8 @@ export default function Auswahl({ a, ed, dunkel, leinwandFarbe, hoehe, bildErset
     height: a.hoehe + pad * 2,
     transform: a.winkel ? `rotate(${a.winkel}rad)` : undefined,
   };
-  // Kontextleiste 14 px unter dem Rahmen, oder darueber, wenn unten kein
-  // Platz mehr ist.
+  // Context bar 14 px below the frame, or above it if there is no room
+  // left below.
   const unten = a.y + a.hoehe + pad + 14;
   const leisteOben = unten + 56 > hoehe - 96;
   const leiste = {
@@ -69,7 +69,7 @@ export default function Auswahl({ a, ed, dunkel, leinwandFarbe, hoehe, bildErset
           </>
         )}
       </div>
-      {/* Linie und Pfeil: jedes Ende einzeln ziehen */}
+      {/* Line and arrow: drag each end separately */}
       {a.endpunkte?.map((p, i) => (
         <span
           key={i}

@@ -1,12 +1,12 @@
 /**
- * Fachliche Fehler mit einem festen Code.
+ * Domain errors with a fixed code.
  *
- * Die App uebersetzt den Code in die eingestellte Sprache (web/src/i18n,
- * Schluessel "error.<code>"). Der englische Satz dazu steht hier, er geht
- * mit in die Antwort und ist fuer alle, die die API ohne die App benutzen.
+ * The app translates the code into the selected language (web/src/i18n,
+ * key "error.<code>"). The English sentence is defined here; it goes into
+ * the response and is meant for anyone using the API without the app.
  *
- * Kein Stapelabzug, kein Feldname aus der Datenbank. Wer einen Fehler wirft,
- * hat eine Eingabe geprueft und sagt, was daran nicht stimmt.
+ * No stack trace, no database field name. Whoever throws an error has
+ * checked an input and says what is wrong with it.
  */
 export const MELDUNGEN = {
   not_found: 'Not found.',
@@ -64,21 +64,21 @@ class FachFehler extends Error {
   }
 }
 
-/** Die Eingabe stimmt nicht. */
+/** The input is invalid. */
 export class Ungueltig extends FachFehler {
   constructor(code) {
     super(code, 400);
   }
 }
 
-/** Gibt es nicht, oder es gehoert jemand anderem. Beides sieht gleich aus. */
+/** Does not exist, or belongs to someone else. Both look the same. */
 export class NichtGefunden extends FachFehler {
   constructor(code = 'not_found') {
     super(code, 404);
   }
 }
 
-/** Board ist sichtbar, aber das Recht reicht nicht (z. B. nur ansehen). */
+/** Board is visible, but the permission is not enough (e.g. view only). */
 export class KeinRecht extends FachFehler {
   constructor(code = 'no_permission') {
     super(code, 403);

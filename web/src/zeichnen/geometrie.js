@@ -1,8 +1,8 @@
-// Kleine Geometrie-Helfer. Punkte liegen durchgehend als flache Zahlenlisten
-// vor ([x0, y0, x1, y1, ...]). Das spart Objekte und damit Arbeit fuer die
-// Speicherbereinigung, und die faellt waehrend des Zeichnens als Ruckler auf.
+// Small geometry helpers. Points are always flat number lists
+// ([x0, y0, x1, y1, ...]). That saves objects and thus work for the
+// garbage collector, which shows up as stutter while drawing.
 //
-// Grenzen sind Rechtecke { x1, y1, x2, y2 } in Weltkoordinaten.
+// Bounds are rectangles { x1, y1, x2, y2 } in world coordinates.
 
 export function abstandQuadPunktStrecke(px, py, ax, ay, bx, by) {
   const dx = bx - ax;
@@ -19,7 +19,7 @@ function lage(ax, ay, bx, by, cx, cy) {
   return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
 }
 
-/** Kleinster Abstand zum Quadrat zwischen zwei Strecken AB und CD. */
+/** Smallest squared distance between two segments AB and CD. */
 export function abstandQuadStrecken(ax, ay, bx, by, cx, cy, dx, dy) {
   const o1 = lage(ax, ay, bx, by, cx, cy);
   const o2 = lage(ax, ay, bx, by, dx, dy);
@@ -35,9 +35,9 @@ export function abstandQuadStrecken(ax, ay, bx, by, cx, cy, dx, dy) {
 }
 
 /**
- * Ramer-Douglas-Peucker: welche Punkte man behalten muss, damit die Linie
- * nirgends mehr als eps von der urspruenglichen abweicht. Iterativ, weil
- * ein langer Strich sonst den Aufrufstapel sprengen kann.
+ * Ramer-Douglas-Peucker: which points must be kept so that the line
+ * nowhere deviates more than eps from the original. Iterative, because
+ * a long stroke could otherwise blow the call stack.
  */
 export function rdp(pts, eps) {
   const n = pts.length / 2;

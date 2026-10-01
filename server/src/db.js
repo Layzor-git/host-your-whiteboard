@@ -1,8 +1,8 @@
-// SQLite ueber das in Node eingebaute node:sqlite.
+// SQLite via the node:sqlite module built into Node.
 //
-// Kein nativ kompiliertes Modul, also keine Architektur-Falle beim
-// Image-Bau fuer den Pi: better-sqlite3 baut auf dem PC gegen x86 und
-// faellt im arm64-Container um.
+// No natively compiled module, so no architecture trap when building the
+// image for the Pi: better-sqlite3 builds against x86 on the PC and
+// falls over in the arm64 container.
 
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
@@ -19,15 +19,15 @@ export function datenbank() {
   mkdirSync(config.datenVerzeichnis, { recursive: true });
   db = new DatabaseSync(join(config.datenVerzeichnis, 'app.db'));
 
-  // WAL: deutlich weniger Schreibvorgaenge auf der Karte und gleichzeitiges
-  // Lesen waehrend geschrieben wird. Auf einem Pi mit SD-Karte wichtig.
+  // WAL: far fewer writes to the card, and reads while writing.
+  // Important on a Pi with an SD card.
   db.exec('PRAGMA journal_mode = WAL');
   db.exec('PRAGMA foreign_keys = ON');
-  // Ohne das scheitert ein zweiter Zugriff sofort statt kurz zu warten.
+  // Without this a second access fails immediately instead of waiting briefly.
   db.exec('PRAGMA busy_timeout = 5000');
 
   migrationenAusfuehren(db);
-  // Aeltere Konten bekamen den Namen klein geschrieben ("anna keller")
+  // Older accounts got their name in lower case ("anna keller")
   for (const n of db.prepare('SELECT id, email, name FROM nutzer').all()) {
     if (n.name === n.email.split('@')[0].replace(/[._-]+/g, ' ')) {
       db.prepare('UPDATE nutzer SET name = ? WHERE id = ?').run(nameAusEmail(n.email), n.id);
@@ -37,11 +37,10 @@ export function datenbank() {
 }
 
 /**
- * Durchnummerierte Migrationen, jede genau einmal, in einer Transaktion.
+ * Numbered migrations, each exactly once, in a transaction.
  *
- * Nie eine bestehende aendern, immer eine neue anhaengen. Sobald echte
- * Daten drinstehen, ist das der einzige gefahrlose Weg, das Schema
- * weiterzuentwickeln.
+ * Never change an existing one, always append a new one. Once real data
+ * is in there, this is the only safe way to evolve the schema.
  */
 function migrationenAusfuehren(db) {
   db.exec(`
@@ -66,18 +65,18 @@ function migrationenAusfuehren(db) {
         "INSERT INTO _migration (id, name, ausgefuehrt) VALUES (?, ?, datetime('now'))",
       ).run(m.id, m.name);
       db.exec('COMMIT');
-      console.log(`[db] Migration ${m.id} (${m.name}) ausgefuehrt`);
+      console.log(`[db] Migration ${m.id} (${m.name}) applied`);
     } catch (fehler) {
       db.exec('ROLLBACK');
-      throw new Error(`Migration ${m.id} (${m.name}) fehlgeschlagen: ${fehler.message}`);
+      throw new Error(`Migration ${m.id} (${m.name}) failed: ${fehler.message}`);
     }
   }
 }
 
 /**
- * Anzeigename aus der Adresse, solange es keinen echten gibt:
- * "anna.keller@..." wird "Anna Keller". Access liefert beim E-Mail-Code
- * keinen Namen mit.
+ * Display name from the address until there is a real one:
+ * "anna.keller@..." becomes "Anna Keller". Access sends no name with
+ * the email code sign-in.
  */
 export function nameAusEmail(email) {
   return email.split('@')[0]
@@ -95,10 +94,10 @@ export function neueId(praefix) {
 }
 
 /**
- * Holt den Nutzer zur E-Mail-Adresse und legt ihn an, falls unbekannt.
+ * Gets the user for the email address and creates them if unknown.
  *
- * Das ersetzt die Registrierung: Wer in der Access-Policy steht, kommt
- * durch, und beim ersten Aufruf entsteht sein Datensatz.
+ * This replaces registration: whoever is in the Access policy gets
+ * through, and their record is created on the first request.
  */
 export function nutzerHolenOderAnlegen(email) {
   const db = datenbank();
@@ -115,6 +114,6 @@ export function nutzerHolenOderAnlegen(email) {
      VALUES (?, ?, ?, ?, ?)`,
   ).run(id, email, name, zeit, zeit);
 
-  console.log(`[db] Neuer Nutzer angelegt: ${email}`);
+  console.log(`[db] New user created: ${email}`);
   return db.prepare('SELECT * FROM nutzer WHERE id = ?').get(id);
 }
