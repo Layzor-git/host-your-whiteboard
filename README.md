@@ -67,10 +67,10 @@ It runs as two small containers (a static web app and a Node API with SQLite). A
 - **Light, dark or system** appearance. **English and German**, switchable at any time
 
 <p align="center">
-  <img src="docs/mobile.png" width="600" alt="The library and a board on a phone">
+  <img src="docs/tablet.png" alt="A board and the library on an iPad in landscape and portrait">
 </p>
 
-On a phone, boards open in a viewing mode that keeps the canvas free. One tap on *Edit* brings the tools back.
+Made for the iPad and Apple Pencil: the pencil draws, fingers pan and zoom, and a switch in the toolbar lets the finger draw as well. Pen and eraser sit within thumb reach at the edge. On a phone, boards open in a viewing mode that keeps the canvas free, and one tap on *Edit* brings the tools back.
 
 ## Run it
 
@@ -136,9 +136,9 @@ Every web build (`npm run build`, or just the checks: `npm run pruefen`) also ve
 
 | Where | What |
 |---|---|
-| `web/src/zeichnen/` | Drawing engine without React: smoothing, elements, eraser, selection, rendering, export |
-| `web/src/Bibliothek.jsx`, `BoardEditor.jsx`, `editor/`, `bibliothek/` | User interface |
-| `web/src/daten/` | Storage (server plus an offline buffer in IndexedDB), live sync, settings |
+| `web/src/zeichnen/` (*drawing*) | Drawing engine without React: smoothing, elements, eraser, selection, rendering, export |
+| `web/src/Bibliothek.jsx` (*library*), `BoardEditor.jsx`, `editor/`, `bibliothek/` | User interface |
+| `web/src/daten/` (*data*) | Storage (server plus an offline buffer in IndexedDB), live sync, settings |
 | `web/src/i18n/` | Translations (`en.js`, `de.js`) |
 | `web/src/import/` | Import of Microsoft Whiteboard exports |
 | `server/src/` | Fastify API: boards, folders, sharing, images, live sync, sign-in |
@@ -146,7 +146,7 @@ Every web build (`npm run build`, or just the checks: `npm run pruefen`) also ve
 
 `#/labor` is a test bench for the pen feel with every smoothing parameter exposed.
 
-The code and its comments are written in German; the app itself speaks English and German.
+The code, its comments and some folder names are in German (translations in *italics* above); the app itself speaks English and German.
 
 ## License
 
