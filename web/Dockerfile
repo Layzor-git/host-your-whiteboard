@@ -1,6 +1,6 @@
-# Web-App: im ersten Schritt bauen, dann nur das Ergebnis mit Caddy ausliefern.
-# Gebaut wird vom Wurzelverzeichnis aus (siehe docker-compose.yml), weil die
-# Pruefung der Uebersetzungen die Fehlercodes des Servers mitliest.
+# Web app: build in the first stage, then serve only the result with Caddy.
+# The build context is the repository root (see docker-compose.yml), because
+# the translation check also reads the server's error codes.
 
 FROM node:24-alpine AS bau
 WORKDIR /app/web

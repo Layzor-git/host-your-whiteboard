@@ -3,61 +3,61 @@
 # For building directly on the server use docker-compose.yml instead.
 # Setup: deploy/README.md. Run in Git Bash on Windows.
 #
-#   ./deploy.sh          nur die Web-App (der Normalfall)
-#   ./deploy.sh api      zusaetzlich den API-Container neu bauen und uebertragen
+#   ./deploy.sh          web app only (the usual case)
+#   ./deploy.sh api      also rebuild and ship the API container
 #
 set -e
 
-# Ziel steht in deploy.env (nicht im Repository), Vorlage: deploy.env.example
+# Target lives in deploy.env (not in the repository), template: deploy.env.example
 [ -f deploy.env ] && . ./deploy.env
 HOST=${DEPLOY_HOST:?DEPLOY_HOST missing, copy deploy.env.example to deploy.env}
 ZIEL=${DEPLOY_NAME:-whiteboard}
 PLATTFORM=${DEPLOY_PLATFORM:-linux/arm64}
 
-# Bewusst ohne fuehrende Tilde und ohne fuehrenden Schraegstrich.
+# Deliberately without a leading tilde and without a leading slash.
 #
-# "FERN=~/apps/$ZIEL" sieht richtig aus, wird aber schon hier aufgeloest,
-# und zwar zum Windows-Heimatverzeichnis: Der Pi bekaeme
-# "mkdir -p /c/Users/.../apps/..." und antwortet
-# "cannot create directory '/c': Permission denied". Ein Pfad mit
-# fuehrendem Schraegstrich haette das naechste Problem, weil Git Bash ihn
-# auf dem Weg nach draussen in einen Windows-Pfad umschreibt.
+# "FERN=~/apps/$ZIEL" looks right, but is expanded right here, to the
+# Windows home directory: the Pi would get
+# "mkdir -p /c/Users/.../apps/..." and answer
+# "cannot create directory '/c': Permission denied". A path with a
+# leading slash has the next problem, because Git Bash rewrites it into
+# a Windows path on its way out.
 #
-# Relativ geht beides nicht schief: ssh und scp starten im
-# Heimatverzeichnis des Nutzers auf dem Pi.
+# A relative path avoids both: ssh and scp start in the user's home
+# directory on the Pi.
 FERN=apps/$ZIEL
 
-echo "==> Web-App bauen"
+echo "==> Building web app"
 cd web
 npm run build
 cd ..
 
-echo "==> Web-App hochladen"
+echo "==> Uploading web app"
 ssh $HOST "mkdir -p $FERN/www && rm -rf $FERN/www/*"
 scp -r web/dist/* $HOST:$FERN/www/
 
 if [ "$1" = "api" ]; then
-  echo "==> API-Image bauen (arm64, ohne das gibt es 'exec format error')"
-  # Derselbe Stempel wie in der Web-App, damit man beide vergleichen kann.
-  # Alles auf einer Zeile: Ein Zeilenumbruch mit Rueckstrich wird beim
-  # Bearbeiten unter Windows gern zu einem literalen \n, und docker sieht
-  # dann ein Argument zu viel.
+  echo "==> Building API image (arm64, otherwise 'exec format error')"
+  # Same build stamp as in the web app, so the two can be compared.
+  # All on one line: a backslash line continuation tends to turn into a
+  # literal \n when edited on Windows, and docker then sees one argument
+  # too many.
   BAUSTAND=$(sed -n 's/^VITE_BAUSTAND=//p' web/.env.production.local)
   docker buildx build --platform $PLATTFORM --build-arg BAUSTAND="$BAUSTAND" -t $ZIEL-api:latest --load server
 
-  echo "==> Image uebertragen (dauert beim ersten Mal ein paar Minuten)"
+  echo "==> Transferring image (takes a few minutes the first time)"
   docker save $ZIEL-api:latest | gzip | ssh $HOST "gunzip | docker load"
 
-  echo "==> Container neu erstellen"
-  # down + up, nicht restart: Sonst greifen Aenderungen an Ports nicht.
+  echo "==> Recreating containers"
+  # down + up, not restart: otherwise changes to ports do not take effect.
   ssh $HOST "cd $FERN && docker compose down && docker compose up -d"
 
-  echo "==> Protokoll der letzten Zeilen"
+  echo "==> Last log lines"
   ssh $HOST "cd $FERN && docker compose logs --tail 20 api"
 fi
 
 echo
-echo "Fertig${DEPLOY_URL:+: $DEPLOY_URL}"
+echo "Done${DEPLOY_URL:+: $DEPLOY_URL}"
 echo
-echo "Am Handy kommt die neue Fassung an, sobald die App einmal im"
-echo "Hintergrund war. Erzwingen: aus den letzten Apps wischen."
+echo "Phones pick up the new version once the app has been in the"
+echo "background. To force it: swipe the app away from recent apps."

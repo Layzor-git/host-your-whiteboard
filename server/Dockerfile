@@ -1,22 +1,22 @@
-# API-Image. Gebaut von docker-compose.yml (direkt auf dem Server, passt
-# automatisch zu dessen CPU) oder von deploy.sh (auf dem PC fuer den Pi):
+# API image. Built by docker-compose.yml (directly on the server, matches
+# its CPU automatically) or by deploy.sh (on the PC, for the Pi):
 #   docker buildx build --platform linux/arm64 -t whiteboard-api:latest .
-# Dort ohne --platform entstuende ein x86-Image, das auf dem Pi mit
-# "exec format error" abbricht.
+# Without --platform that would produce an x86 image, which fails on the
+# Pi with "exec format error".
 
 FROM node:24-alpine
 
 WORKDIR /app
 
-# Erst die Abhaengigkeiten, das bleibt im Cache, solange package.json gleich bleibt.
+# Dependencies first; this layer stays cached as long as package.json is unchanged.
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
 
 COPY src ./src
 
-# Welcher Stand steckt im Image? Kommt aus deploy.sh und steht spaeter in
-# der App. Ohne das sieht man nicht, ob nur die Web-App ausgerollt wurde
-# und der Server noch der alte ist.
+# Which build is in the image? Comes from deploy.sh and is shown in the
+# app. Without it you cannot tell whether only the web app was rolled out
+# and the server is still the old one.
 ARG BAUSTAND=unknown
 ENV BAUSTAND=$BAUSTAND
 
@@ -24,7 +24,7 @@ ENV NODE_ENV=production
 ENV DATEN_VERZEICHNIS=/data
 EXPOSE 3000
 
-# Damit ein Absturz nicht als Zombie haengen bleibt.
+# So a crashed process does not linger as a zombie.
 RUN apk add --no-cache tini
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "src/index.js"]
