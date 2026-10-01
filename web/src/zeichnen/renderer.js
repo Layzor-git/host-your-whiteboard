@@ -1,20 +1,19 @@
-// Zwei Ebenen uebereinander:
+// Two layers on top of each other:
 //
-//   unten  alle fertigen Elemente und der Hintergrund. Wird nur neu
-//          gezeichnet, wenn sich Inhalt oder Kamera aendert. Ein neuer
-//          Strich oben drauf wird einfach dazugemalt, ohne alles neu.
-//   oben   der Strich, der gerade entsteht, und der Radierer-Kreis. Nur
-//          diese Ebene wird waehrend des Zeichnens pro Bild neu gemalt.
-//          "desynchronized" erlaubt dem Browser, sie am Compositor vorbei
-//          direkt anzuzeigen. Das spart vor allem unter Windows spuerbar
-//          Latenz.
+//   bottom  all finished elements and the background. Only redrawn when
+//           content or camera change. A new stroke on top is simply
+//           painted on, without redrawing everything.
+//   top     the stroke being drawn and the eraser circle. Only this layer
+//           is repainted every frame while drawing. "desynchronized" lets
+//           the browser display it directly, bypassing the compositor.
+//           That saves noticeable latency, especially on Windows.
 
 import { beiBildGeladen, grenzen, zeichnen } from './elemente.js';
 import { farbeAufloesen, leinwand, MUSTER_FARBE, PATTERN } from './farben.js';
 import { ueberlappen } from './geometrie.js';
 
-// Kennfarben kommen als CSS-Variablen aus den Tokens (--peer-teal usw.,
-// je nach Hell/Dunkel anders); die Leinwand braucht sie als Farbwert.
+// Peer colors come as CSS variables from the tokens (--peer-teal etc.,
+// different for light/dark); the canvas needs them as color values.
 function kennfarbe(id) {
   const stil = getComputedStyle(document.documentElement);
   if (id === 'on') return stil.getPropertyValue('--on-peer').trim() || '#ffffff';
@@ -25,18 +24,18 @@ export class Renderer {
   breite = 0;
   hoehe = 0;
   dpr = 1;
-  /** fn(ctx) in Weltkoordinaten, fuer das entstehende Element */
+  /** fn(ctx) in world coordinates, for the element being created */
   vorschau = null;
-  /** { x, y, r } in CSS-Pixeln */
+  /** { x, y, r } in CSS pixels */
   cursor = null;
   rohZeigen = false;
   dauer = 0;
-  /** ids, die gerade nicht auf der unteren Ebene erscheinen (Auswahl wird bewegt) */
+  /** ids that are currently not shown on the bottom layer (selection is being moved) */
   ausgeblendet = null;
-  /** Striche anderer Personen im Entstehen: von -> { el, name, farbe, spitze, ende } */
+  /** Strokes by other people in progress: von -> { el, name, farbe, spitze, ende } */
   entwuerfe = new Map();
 
-  /** Ist die Leinwand dunkel? Bestimmt die Tintenfarben. */
+  /** Is the canvas dark? Determines the ink colors. */
   get dunkel() {
     return !!leinwand(this.dok.hintergrund.farbe).dark;
   }
@@ -58,8 +57,8 @@ export class Renderer {
       container.appendChild(c);
     }
     this.ctxU = this.unten.getContext('2d', { alpha: false });
-    // Nur am Desktop: Auf Android legt der Browser eine solche Ebene als
-    // Overlay ueber alles und verdeckt damit die untere Ebene samt Hintergrund.
+    // Desktop only: on Android the browser puts such a layer as an overlay
+    // above everything, hiding the bottom layer including the background.
     const direkt = !/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
     this.ctxO = (direkt && this.oben.getContext('2d', { desynchronized: true })) || this.oben.getContext('2d');
 
@@ -67,7 +66,7 @@ export class Renderer {
     this.beobachter.observe(container);
     this.#groesse();
 
-    // Ein Bild ist fertig geladen: alles neu, sonst bleibt der Platzhalter
+    // An image has finished loading: redraw everything, otherwise the placeholder stays
     this.bildAbmelden = beiBildGeladen(() => this.ganz());
 
     this.abmelden = dok.beiAenderung((e) => {
@@ -116,7 +115,7 @@ export class Renderer {
     }
     this.#ganzNoetig = true;
     this.#obenNoetig = true;
-    // Sofort zeichnen: eine geleerte Leinwand bis zum naechsten Bild flackert.
+    // Draw right away: a cleared canvas flickers until the next frame.
     this.#zeichnen();
   }
 
@@ -159,8 +158,8 @@ export class Renderer {
     this.#weltTransform(ctx);
     const sicht = this.kamera.sicht(this.breite, this.hoehe);
     const els = this.dok.elemente;
-    // Textmarker zuerst, damit er unter der Tinte liegt. Auf heller
-    // Leinwand multipliziert, auf dunkler aufgehellt, wie ein echter Marker.
+    // Highlighter first, so it lies below the ink. Multiplied on a light
+    // canvas, lightened on a dark one, like a real highlighter.
     ctx.globalCompositeOperation = dunkel ? 'screen' : 'multiply';
     const weg = this.ausgeblendet;
     const sichtbar = (el) => ueberlappen(grenzen(el), sicht) && !weg?.has(el.id);
@@ -203,7 +202,7 @@ export class Renderer {
     const H = this.unten.height;
     ctx.fillStyle = this.dunkel ? MUSTER_FARBE.dark : MUSTER_FARBE.light;
     if (muster.dotRadius) {
-      // Punkte wachsen mit dem Zoom mit, aber nicht ins Unleserliche.
+      // Dots grow with the zoom, but not to the point of being unreadable.
       const d = Math.min(Math.max(muster.dotRadius * 2 * Math.min(z, 1.5), 1.2), 4) * this.dpr;
       ctx.beginPath();
       for (let px = ox; px < W; px += s) {
@@ -217,10 +216,10 @@ export class Renderer {
     }
   }
 
-  // Fremde Striche im Entstehen, dazu an der Stiftspitze ein Etikett mit
-  // dem Namen in der Kennfarbe der Person (Design 7g/7h). Das Etikett
-  // bleibt nach dem Absetzen 1500 ms stehen und blendet dann in 500 ms aus;
-  // es wird in Bildschirmgroesse gezeichnet, skaliert also nicht mit dem Zoom.
+  // Other people's strokes in progress, plus a label at the pen tip with
+  // the name in the person's peer color (design 7g/7h). The label stays
+  // for 1500 ms after the pen lifts and then fades out over 500 ms; it is
+  // drawn at screen size, so it does not scale with the zoom.
   #entwuerfeZeichnen(ctx) {
     const dunkel = this.dunkel;
     const { x: kx, y: ky, z } = this.kamera;
@@ -273,8 +272,8 @@ export class Renderer {
       this.vorschau(ctx);
     }
     if (this.cursor) {
-      // Radierer-Kreis wie im Design: Rand in Graphit, aussen ein Ring in
-      // Leinwandfarbe, innen ganz leicht grau.
+      // Eraser circle as in the design: graphite border, a ring in canvas
+      // color outside, very light gray inside.
       const { x, y, r } = this.cursor;
       const dunkel = this.dunkel;
       ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);

@@ -1,29 +1,29 @@
-// Live-Abgleich eines offenen Boards mit dem Pi, per WebSocket.
+// Live sync of an open board with the Pi, via WebSocket.
 //
-// Eigene Aenderungen kommen als Operationen aus dem Dokument (Ereignis
-// "ops") und landen zuerst in einem Puffer: je Element nur die letzte
-// Operation, mit fortlaufender Nummer. Der Puffer liegt auch in IndexedDB,
-// ueberlebt also Netzausfall und Neuladen. Der Server bestaetigt jede
-// Sendung (ack); bestaetigte Eintraege fliegen raus.
+// Own changes come as operations from the document ("ops" event) and land
+// in a buffer first: per element only the latest operation, with a running
+// number. The buffer is also kept in IndexedDB, so it survives network
+// outages and reloads. The server acknowledges every send (ack);
+// acknowledged entries are dropped.
 //
-// Nach jedem (Wieder-)Verbinden schickt der Server den ganzen Stand. Darauf
-// kommt der Puffer obendrauf, dann geht der Puffer komplett noch einmal
-// raus. Doppelt Ankommendes schadet nicht: "setzen" und "loeschen" haben
-// dasselbe Ergebnis, egal wie oft.
+// After every (re)connect the server sends the whole state. The buffer is
+// applied on top, then the whole buffer is sent out again. Duplicates do
+// no harm: "setzen" and "loeschen" have the same result no matter how
+// often.
 //
-// Aenderungen anderer Geraete an einem Element, fuer das hier noch etwas
-// im Puffer liegt, werden ignoriert: Die eigene Aenderung erreicht den
-// Server danach und gewinnt dort ohnehin.
+// Changes from other devices to an element that still has something in the
+// buffer here are ignored: the own change reaches the server afterwards
+// and wins there anyway.
 //
-// Bei geteilten Boards kommen dazu: wer gerade anwesend ist, das eigene
-// Recht (bei "ansehen" wird nichts gesendet) und Striche, die jemand
-// gerade zeichnet ("Entwurf"), damit man ihnen live zusehen kann.
+// Shared boards add: who is present right now, the own permission (with
+// "ansehen" nothing is sent) and strokes someone is drawing right now
+// ("Entwurf"), so you can watch them live.
 
 import { api } from '../api.js';
 import { ohneLaufzeit } from '../zeichnen/dokument.js';
 import { ausstehendeSenden, idb, opsAufListe } from './speicher.js';
 
-const PING_MS = 25000; // Cloudflare trennt stille Verbindungen nach ~100 s
+const PING_MS = 25000; // Cloudflare drops idle connections after ~100 s
 const SENDEN_NACH_MS = 40;
 const WARTEN_MS = [500, 1000, 2000, 5000, 10000];
 const VORSCHAU_ALLE_MS = 8000;
@@ -40,8 +40,8 @@ export class LiveBoard {
   #nr = 0;
   #gesendetBis = 0;
   #verbunden = false;
-  // Erst nach einem gescheiterten Versuch "offline" zeigen, nicht schon
-  // in der halben Sekunde, bis die erste Verbindung steht
+  // Show "offline" only after a failed attempt, not during the half second
+  // until the first connection is up
   #gescheitert = false;
   #versuch = 0;
   #uhren = {};
@@ -51,20 +51,20 @@ export class LiveBoard {
   #abmelden = [];
   #entwurf = undefined;
   #entwurfZeit = 0;
-  /** Eigene Verbindung: { verbindung, farbe, recht } */
+  /** Own connection: { verbindung, farbe, recht } */
   ich = null;
-  /** Alle Anwesenden, inklusive der eigenen Verbindung */
+  /** Everyone present, including the own connection */
   personen = [];
 
   /**
-   * dok: das Dokument der Engine
-   * Rueckmeldungen fuer die Oberflaeche:
+   * dok: the engine's document
+   * Callbacks for the UI:
    *   beiZustand('saved' | 'saving' | 'offline')
    *   beiMeta({ titel })
-   *   beiIch({ verbindung, farbe, recht })       auch wenn sich das Recht aendert
+   *   beiIch({ verbindung, farbe, recht })       also when the permission changes
    *   beiAnwesenheit(personen)
-   *   beiEntwurf(von, el | null, person)         fremder Strich im Entstehen
-   *   beiAusgesperrt()                           Zugriff wurde entzogen
+   *   beiEntwurf(von, el | null, person)         someone else's stroke in progress
+   *   beiAusgesperrt()                           access was revoked
    */
   constructor(id, dok, rueck = {}) {
     this.id = id;
@@ -100,7 +100,7 @@ export class LiveBoard {
     this.#ws?.close(1000);
   }
 
-  /** Vorschaubild anfordern; quelle() liefert eine data:-URL oder null. */
+  /** Request a thumbnail; quelle() returns a data: URL or null. */
   vorschau(quelle) {
     this.#vorschauQuelle = quelle;
     clearTimeout(this.#uhren.vorschau);
@@ -118,8 +118,8 @@ export class LiveBoard {
   }
 
   /**
-   * Eigenen Strich im Entstehen mitteilen (null = fertig oder abgebrochen).
-   * Hoechstens alle 50 ms; der letzte Stand geht immer raus.
+   * Announce the own stroke in progress (null = finished or cancelled).
+   * At most every 50 ms; the latest state is always sent.
    */
   entwurf(el) {
     this.#entwurf = el;
@@ -156,7 +156,7 @@ export class LiveBoard {
     }
   }
 
-  // ---- eigene Aenderungen
+  // ----------- own changes
 
   #lokal(ops) {
     for (const op of ops) {
@@ -191,7 +191,7 @@ export class LiveBoard {
     if (!this.#offen && this.#vorschauQuelle) this.vorschau(this.#vorschauQuelle);
   }
 
-  // ---- Verbindung
+  // ---- Connection
 
   #verbinden(sofort) {
     if (this.#aus || this.#ws) return;
@@ -212,15 +212,15 @@ export class LiveBoard {
       clearInterval(this.#uhren.ping);
       this.#zustandNeu();
       if (this.#aus) return;
-      // Zugriff entzogen (Freigabe entfernt, Board geloescht): nicht mehr
-      // versuchen, und was noch im Puffer liegt, darf nicht mehr hin
+      // Access revoked (share removed, board deleted): stop trying, and
+      // whatever is still in the buffer must not get there any more
       if (e.code === 4403) {
         this.#eintraege = {};
         this.#pufferSichern();
         this.rueck.beiAusgesperrt?.();
         return;
       }
-      // Board noch nicht auf dem Server (offline angelegt): erst anlegen
+      // Board not on the server yet (created offline): create it first
       if (e.code === 4404) ausstehendeSenden().finally(() => this.#spaeter());
       else this.#spaeter();
     });
@@ -244,7 +244,7 @@ export class LiveBoard {
       this.#verbunden = true;
       this.#gescheitert = false;
       this.#versuch = 0;
-      // Stand vom Server plus eigener Puffer obendrauf
+      // State from the server plus own buffer on top
       const zusammen = opsAufListe(n.elemente, this.#eintraege);
       this.dok.abgleichen(zusammen.elemente, zusammen.hintergrund ?? n.hintergrund);
       if (n.titel) this.beiMeta?.({ titel: n.titel });
@@ -256,7 +256,7 @@ export class LiveBoard {
     } else if (n.t === 'ich') {
       this.ich = { verbindung: n.verbindung, farbe: n.farbe, recht: n.recht };
       this.rueck.beiIch?.(this.ich);
-      // Nur ansehen: was hier trotzdem entstanden ist, kommt nie an
+      // View only: whatever was created here anyway never arrives
       if (n.recht === 'ansehen' && this.#offen) {
         this.#eintraege = {};
         this.#pufferSichern();
@@ -280,8 +280,8 @@ export class LiveBoard {
         this.dok.fremdAnwenden([{ art: 'hintergrund', wert: n.hintergrund }]);
       }
     } else if (n.t === 'fehler') {
-      // Der Server lehnt eine Sendung ab: nicht endlos wiederholen
-      console.warn('Live-Abgleich:', n.text);
+      // The server rejects a send: do not retry endlessly
+      console.warn('Live sync:', n.text);
       if (n.nr) this.#bestaetigt(n.nr);
     }
   }

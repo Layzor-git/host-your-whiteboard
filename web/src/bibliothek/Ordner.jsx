@@ -4,10 +4,10 @@ import { Dialog, MenuePunkt } from '../ui/bausteine.jsx';
 import { AvatarStapel, rufname } from '../ui/Avatar.jsx';
 import { t, useT } from '../i18n/index.js';
 
-// Ordner in der Bibliothek (Design 9a-9i): Kachel, Pfadleiste,
-// "Verschieben nach ..." mit Ordnerbaum, "Ordner loeschen".
+// Folders in the library (design 9a-9i): tile, breadcrumb bar,
+// "Move to ..." with a folder tree, "Delete folder".
 
-/** Kette der Ordner von oben bis zu id (ohne "Bibliothek"). */
+/** Chain of folders from the top down to id (without "Library"). */
 export function ordnerPfad(id, ordner) {
   const pfad = [];
   const nachId = new Map(ordner.map((o) => [o.id, o]));
@@ -23,7 +23,7 @@ export function pfadText(id, ordner) {
   return [t('common.library'), ...ordnerPfad(id, ordner).map((o) => o.name)].join(' › ');
 }
 
-/** id und alle Ordner darunter */
+/** id and all folders below it */
 export function teilbaum(id, ordner) {
   const ids = new Set([id]);
   let neu = true;
@@ -38,7 +38,7 @@ export function teilbaum(id, ordner) {
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de');
 
-/** Ablageziel fuer gezogene Boards und Ordner (HTML5-Drag&Drop). */
+/** Drop target for dragged boards and folders (HTML5 drag & drop). */
 export function ablageZiel(zielId, { ziehen, ablage, setAblage, ablegen }) {
   const schluessel = zielId ?? '__oben';
   return {
@@ -91,7 +91,7 @@ export function Brotkrumen({ pfad, oeffnen, ziel }) {
   );
 }
 
-/** Gehoert der Ordner jemand anderem (ueber eine Ordnerfreigabe sichtbar)? */
+/** Does the folder belong to someone else (visible through a folder share)? */
 export const istFremd = (o) => !!o?.besitzer;
 
 export function OrdnerKachel({
@@ -102,7 +102,7 @@ export function OrdnerKachel({
   const [name, setName] = useState(ordner.name);
   useEffect(() => { setName(ordner.name); }, [ordner.name]);
   const fremd = istFremd(ordner);
-  // Bei fremden Ordnern laesst sich nur die geteilte Wurzel entfernen
+  // For other people's folders only the shared root can be removed
   const mitMenue = !fremd || ordner.geteilteWurzel;
   const personen = fremd ? [ordner.besitzer] : ordner.geteiltMit ?? [];
   return (
@@ -183,9 +183,9 @@ export function OrdnerKachel({
 }
 
 /**
- * "Verschieben nach ..." (Design 9d/9e). was: { art: 'board'|'ordner',
- * id, name, ort, geteiltVon }. Beim Ordner sind er selbst und alles
- * darunter gesperrt.
+ * "Move to ..." (design 9d/9e). was: { art: 'board'|'ordner',
+ * id, name, ort, geteiltVon }. For a folder, the folder itself and
+ * everything below it are disabled.
  */
 export function VerschiebenDialog({ was, ordner, schliessen, verschieben, neuerOrdner }) {
   const t = useT();
@@ -279,7 +279,7 @@ export function VerschiebenDialog({ was, ordner, schliessen, verschieben, neuerO
   );
 }
 
-/** "Ordner loeschen?" mit Zaehlern (Design 9i). */
+/** "Delete folder?" with counts (design 9i). */
 export function OrdnerLoeschenDialog({ ordner, zaehler, schliessen, loeschen }) {
   const t = useT();
   if (!ordner) return null;

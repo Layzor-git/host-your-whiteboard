@@ -1,22 +1,21 @@
-// Aus den rohen Stiftpunkten wird ein ruhiger Strich. Drei Stufen, jede mit
-// eigenem Regler im Labor:
+// Raw pen points become a calm stroke. Three stages, each with its own
+// slider in the lab:
 //
-// 1. Stabilisierung ("Seil"): Der Strich haengt an einem kurzen Seil hinter
-//    der Stiftspitze. Zittern innerhalb der Seillaenge kommt gar nicht erst
-//    an, Ecken werden weicher. Unabhaengig davon, wie oft das Geraet Punkte
-//    meldet, darum verhaelt sich Wacom mit 200 Hz wie das iPad mit 240 Hz.
-// 2. Glaettung: Die Punkte werden in gleichmaessigen Abstaenden neu
-//    abgetastet und mit einem Gauss-Fenster gemittelt. An den Enden
-//    schrumpft das Fenster, damit Anfang und Ende genau dort bleiben, wo
-//    der Stift war. Ein Punkt ist "fest", sobald genug Nachfolger da sind,
-//    darum wird waehrend des Zeichnens nur das Ende neu gerechnet.
-// 3. Vereinfachung: Beim Loslassen fliegen alle Punkte raus, die fuer die
-//    Form nicht noetig sind. Gezeichnet wird spaeter ein Spline durch die
-//    uebrigen Punkte, der Strich sieht also gleich aus, braucht aber einen
-//    Bruchteil des Speichers.
+// 1. Stabilization ("rope"): the stroke hangs on a short rope behind the
+//    pen tip. Jitter within the rope length never arrives, corners get
+//    softer. Independent of how often the device reports points, which is
+//    why Wacom at 200 Hz behaves like the iPad at 240 Hz.
+// 2. Smoothing: the points are resampled at even distances and averaged
+//    with a Gaussian window. At the ends the window shrinks, so start and
+//    end stay exactly where the pen was. A point is "fixed" as soon as
+//    enough successors exist, which is why only the end is recomputed
+//    while drawing.
+// 3. Simplification: on release, all points not needed for the shape are
+//    dropped. Later a spline is drawn through the remaining points, so the
+//    stroke looks the same but needs a fraction of the storage.
 //
-// Alle Laengen sind in Bildschirmpixeln gedacht und werden durch den Zoom
-// geteilt. So fuehlt sich der Stift bei jeder Zoomstufe gleich an.
+// All lengths are meant in screen pixels and are divided by the zoom.
+// That way the pen feels the same at every zoom level.
 
 import { rdp, runden } from './geometrie.js';
 
@@ -41,10 +40,10 @@ export class StrichBauer {
       this.gewichte.push(this.K ? Math.exp(-(k * k) / (2 * sigma * sigma)) : 1);
     }
 
-    this.roh = [];     // x, y, druck wie vom Geraet
-    this.proben = [];  // gleichmaessig abgetastet
-    this.glatt = [];   // geglaettet, das wird gezeichnet
-    this.fest = 0;     // so viele Punkte von glatt aendern sich nicht mehr
+    this.roh = [];     // x, y, druck as reported by the device
+    this.proben = [];  // evenly resampled
+    this.glatt = [];   // smoothed, this is what gets drawn
+    this.fest = 0;     // this many points of glatt no longer change
     this.spitze = null;
     this.rest = 0;
   }
@@ -67,7 +66,7 @@ export class StrichBauer {
     this.#nachglaetten();
   }
 
-  /** Beim Loslassen holt der Strich die Stiftspitze ein. */
+  /** On release the stroke catches up with the pen tip. */
   beenden() {
     const n = this.roh.length;
     if (n >= 3) this.#ziehen(this.roh[n - 3], this.roh[n - 2], this.roh[n - 1]);
@@ -78,7 +77,7 @@ export class StrichBauer {
     this.#nachglaetten();
   }
 
-  /** Vereinfachte Punkte fuer das Speichern. */
+  /** Simplified points for saving. */
   ergebnis() {
     const G = this.glatt;
     const n = G.length / 3;
@@ -130,8 +129,8 @@ export class StrichBauer {
         sw += g;
       }
       this.glatt.push(sx / sw, sy / sw, sp / sw);
-      // Das Fenster dieses Punkts waechst nicht mehr, wenn es nicht vom
-      // Ende begrenzt wird. Dann ist er fertig.
+      // This point's window no longer grows if it is not limited by the
+      // end. Then it is done.
       if (i === this.fest && n - 1 - i >= Math.min(K, i)) this.fest++;
     }
   }

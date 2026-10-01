@@ -1,6 +1,6 @@
-// Prueft die Zeichen-Engine ohne Browser: Glaettung, Radierer, Verlauf.
-// Path2D gibt es in Node nicht, eine leere Attrappe reicht, gezeichnet
-// wird hier ja nichts.
+// Tests the drawing engine without a browser: smoothing, eraser, history.
+// Path2D does not exist in Node; an empty dummy is enough, nothing is
+// drawn here after all.
 
 globalThis.Path2D = class {
   moveTo() {} lineTo() {} addPath() {} bezierCurveTo() {} arc() {} ellipse() {} closePath() {}
@@ -16,7 +16,7 @@ function pruefe(name, ok, info = '') {
   if (!ok) fehler++;
 }
 
-// --- Glaettung: zittrige Gerade wird ruhig, Endpunkte bleiben, weniger Punkte
+// ---- Smoothing: a shaky straight line becomes calm, end points stay, fewer points
 {
   const b = new StrichBauer(GLAETTUNG_STANDARD, 1);
   let seed = 1;
@@ -33,7 +33,7 @@ function pruefe(name, ok, info = '') {
   pruefe('Gerade: Anfang bleibt', punkte[0] === 0 && Math.abs(punkte[1] - 100) < 2);
 }
 
-// --- Glaettung inkrementell = in einem Rutsch
+// ------ Incremental smoothing = all in one go
 {
   const a = new StrichBauer(GLAETTUNG_STANDARD, 1);
   const pts = [];
@@ -46,7 +46,7 @@ function pruefe(name, ok, info = '') {
   pruefe('Kreis bleibt Kreis', maxR < 3, `Radiusfehler ${maxR.toFixed(2)}`);
 }
 
-// --- Ein Tipp wird ein Punkt
+// ------- A tap becomes a dot
 {
   const b = new StrichBauer(GLAETTUNG_STANDARD, 1);
   b.hinzu(10, 10, 0.5);
@@ -58,7 +58,7 @@ function strich(punkte, z) {
   return { id: neueId(), typ: 'strich', z, farbe: '#000', breite: 4, punkte, druck: null };
 }
 
-// --- Dokument, Radierer und Verlauf
+// ----- Document, eraser and history
 {
   const dok = new Dokument();
   let tx = dok.transaktion();
@@ -71,7 +71,7 @@ function strich(punkte, z) {
   pruefe('Kein Treffer', !trifft(s1, 100, 20, 100, 30, 3));
   pruefe('Raster findet', dok.finden({ x1: 95, y1: -5, x2: 105, y2: 5 }).has(s1.id));
 
-  // Punkt-Radierer quer durch die Mitte von s1
+  // Point eraser straight through the middle of s1
   const stuecke = punktRadieren(s1, 100, -10, 100, 10, 5);
   pruefe('Punktradierer teilt in zwei', stuecke?.length === 2, `${stuecke?.length}`);
   const ende1 = stuecke[0].punkte.at(-2);
@@ -81,7 +81,7 @@ function strich(punkte, z) {
   tx = dok.transaktion();
   tx.entfernen(s1.id);
   stuecke.forEach((s) => { s.z = s1.z; tx.hinzufuegen(s); });
-  // Ein Stueck in derselben Geste gleich wieder wegradieren
+  // Erase a piece again right away in the same gesture
   tx.entfernen(stuecke[0].id);
   tx.abschliessen();
   pruefe('Nach Radieren', dok.elemente.length === 2 && dok.elemente[0] === stuecke[1], dok.elemente.map((e) => e.z).join(','));
@@ -99,15 +99,15 @@ function strich(punkte, z) {
   pruefe('Speicherformat', daten.version === 1 && Array.isArray(daten.elemente));
 }
 
-// --- Form wird beim Punkt-Radieren zu Strichen
+// ---- A shape turns into strokes on point erasing
 {
   const r = { id: 'r', typ: 'form', form: 'rechteck', x1: 0, y1: 0, x2: 100, y2: 100, farbe: '#000', breite: 2, z: 0 };
   const st = punktRadieren(r, 50, -10, 50, 10, 4);
   pruefe('Rechteck oben aufgeschnitten', st?.length === 2 && st.every((s) => s.eckig), `${st?.length}`);
 }
 
-// --- Der Bug: Radierer bleibt auf der Schnittkante stehen und streift die
-// Stuecke viele Male. Die Form darf sich dabei nicht verziehen.
+// --- The bug: the eraser stays on the cut edge and brushes the pieces
+// many times. The shape must not get distorted in the process.
 {
   const b = new StrichBauer(GLAETTUNG_STANDARD, 1);
   for (let x = 0; x <= 600; x += 2) b.hinzu(x, 200 + 80 * Math.sin(x / 45), 0.5);
@@ -116,7 +116,7 @@ function strich(punkte, z) {
   const kurve = (x) => 200 + 80 * Math.sin(x / 45);
 
   let teile = punktRadieren(original, 300, 100, 300, 300, 8);
-  // 60 kleine Bewegungen rund um die Schnittstelle, jede trifft beide Stuecke
+  // 60 small movements around the cut, each one hits both pieces
   for (let k = 0; k < 60; k++) {
     const y = 120 + (k % 10) * 16;
     const neu = [];
@@ -139,7 +139,7 @@ function strich(punkte, z) {
   pruefe('Viel radieren: innere Punkte unveraendert', fremd === 0, `${fremd} veraendert`);
 }
 
-// --- Eigenes Dateiformat: exportieren und wieder einlesen
+// --------------- Own file format: export and read back in
 {
   const { alsDatei } = await import('../src/zeichnen/export.js');
   const { dateiImportieren } = await import('../src/import/index.js');
@@ -163,7 +163,7 @@ function strich(punkte, z) {
   pruefe('Datei: fremdes JSON wird abgelehnt', abgelehnt);
 }
 
-// --- Bilder: verschieben, skalieren, drehen, antippen
+// ------------------- Images: move, scale, rotate, tap
 {
   const { transformieren, enthaelt, grenzen } = await import('../src/zeichnen/elemente.js');
   const b = { id: 'b', typ: 'bild', z: 0, bild: 'i_x', x1: 0, y1: 0, x2: 200, y2: 100 };

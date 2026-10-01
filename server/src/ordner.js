@@ -1,12 +1,11 @@
-// Ordner in der Bibliothek, beliebig verschachtelt. Ordner gehoeren immer
-// einer Person. Wo ein Board liegt, steht je Person in board_ort: So kann
-// jede Person ein geteiltes Board in ihre eigenen Ordner legen, ohne dass
-// sich fuer die anderen etwas aendert.
+// Folders in the library, nested arbitrarily. Folders always belong to one
+// person. Where a board lives is stored per person in board_ort: that way
+// everyone can put a shared board into their own folders without anything
+// changing for the others.
 //
-// Loeschen ist ein "Vorgang": Unterordner verschwinden mit, eigene Boards
-// kommen in den Papierkorb, geteilte werden nur aus der eigenen Bibliothek
-// entfernt. Alles traegt dieselbe Vorgangs-Id, damit "Rueckgaengig" genau
-// das zurueckholt.
+// Deleting is an "operation": subfolders go with it, own boards go to the
+// trash, shared ones are only removed from your own library. Everything
+// carries the same operation id, so that "Undo" restores exactly that.
 
 import { datenbank, jetzt, neueId } from './db.js';
 import { NichtGefunden, Ungueltig } from './fehler.js';
@@ -33,7 +32,7 @@ function holen(nutzerId, id) {
   return o;
 }
 
-/** Ordner und alle darunter */
+/** Folder and everything below it */
 function teilbaum(nutzerId, id) {
   const alle = aktive(nutzerId);
   const ids = new Set([id]);
@@ -50,7 +49,7 @@ function teilbaum(nutzerId, id) {
   return ids;
 }
 
-/** Wo der Nutzer seine Boards abgelegt hat: board_id -> ordner_id (nur gueltige). */
+/** Where the user has placed their boards: board_id -> ordner_id (valid ones only). */
 export function orte(nutzerId) {
   const gueltig = new Set(aktive(nutzerId).map((o) => o.id));
   const m = new Map();
@@ -60,7 +59,7 @@ export function orte(nutzerId) {
   return m;
 }
 
-/** So lange bleibt Geloeschtes im Papierkorb, Boards wie Ordner. */
+/** How long deleted items stay in the trash, boards and folders alike. */
 export const PAPIERKORB_TAGE = 30;
 
 function ordnerEndgueltigLoeschen(ids) {
@@ -73,7 +72,7 @@ function ordnerEndgueltigLoeschen(ids) {
 }
 
 export function liste(nutzerId) {
-  // Was laenger als die Papierkorb-Frist geloescht ist, endgueltig entfernen
+  // Permanently remove whatever has been deleted for longer than the trash period
   const grenze = new Date(Date.now() - PAPIERKORB_TAGE * 864e5).toISOString();
   ordnerEndgueltigLoeschen(datenbank()
     .prepare('SELECT id FROM ordner WHERE nutzer_id = ? AND geloescht_am IS NOT NULL AND geloescht_am < ?')
@@ -83,8 +82,8 @@ export function liste(nutzerId) {
 }
 
 /**
- * Geloeschte Ordner fuer den Papierkorb: nur die, die man selbst geloescht
- * hat (Unterordner kommen mit ihnen). Mit Zaehlern, was darin mitging.
+ * Deleted folders for the trash: only those you deleted yourself
+ * (subfolders come along with them). With counts of what went with them.
  */
 export function papierkorb(nutzerId) {
   const db = datenbank();
@@ -109,16 +108,16 @@ export function papierkorb(nutzerId) {
       geloeschtAm: o.geloescht_am,
       unterordner: unter,
       boards: Number(boards),
-      // Wohin er zurueckkommt (der Elternordner, falls es ihn noch gibt)
+      // Where it returns to (the parent folder, if it still exists)
       elternName: aktiveIds.get(o.eltern_id)?.name ?? null,
     };
   });
 }
 
 /**
- * Einen Ordner und alle ueber ihm wieder herstellen, falls geloescht. So
- * kommt ein einzeln wiederhergestelltes Board an seinen alten Ort, statt
- * ganz oben zu landen. Geschwister bleiben im Papierkorb.
+ * Restore a folder and all folders above it, if deleted. That way a board
+ * restored on its own returns to its old place instead of ending up at
+ * the very top. Siblings stay in the trash.
  */
 export function pfadWiederherstellen(nutzerId, ordnerId) {
   const q = datenbank().prepare('SELECT * FROM ordner WHERE id = ? AND nutzer_id = ?');
@@ -132,7 +131,7 @@ export function pfadWiederherstellen(nutzerId, ordnerId) {
   }
 }
 
-/** Einen geloeschten Ordner samt allem, was mit ihm ging, endgueltig loeschen. */
+/** Permanently delete a deleted folder along with everything that went with it. */
 export function endgueltigLoeschen(nutzerId, vorgang) {
   const db = datenbank();
   const ids = db
@@ -147,7 +146,7 @@ export function endgueltigLoeschen(nutzerId, vorgang) {
   return { boards: Number(r.changes) };
 }
 
-/** Papierkorb leeren: alle geloeschten Ordner. */
+/** Empty the trash: all deleted folders. */
 export function papierkorbLeeren(nutzerId) {
   ordnerEndgueltigLoeschen(datenbank()
     .prepare('SELECT id FROM ordner WHERE nutzer_id = ? AND geloescht_am IS NOT NULL')
@@ -183,7 +182,7 @@ export function aendern(nutzerId, id, eingabe) {
   return { id, name, elternId: eltern };
 }
 
-/** Board an einen Ort legen (null = oberste Ebene), fuer diesen Nutzer. */
+/** Put a board in a place (null = top level), for this user. */
 export function boardAblegen(nutzerId, boardId, ordnerId) {
   pruefen(nutzerId, boardId);
   if (ordnerId) holen(nutzerId, ordnerId);
@@ -234,9 +233,9 @@ export function wiederherstellen(nutzerId, vorgang) {
   const ordnerIds = db.prepare('SELECT id, eltern_id FROM ordner WHERE nutzer_id = ? AND vorgang = ?').all(nutzerId, v);
   const boardIds = db.prepare('SELECT id FROM board WHERE nutzer_id = ? AND vorgang = ?').all(nutzerId, v);
   const email = db.prepare('SELECT email FROM nutzer WHERE id = ?').get(nutzerId).email;
-  // Ordner, eigene Boards und aus der Bibliothek entfernte geteilte Boards.
-  // Einiges kann schon vorher zurueckgekommen sein (ein einzelnes Board samt
-  // Pfad): Nur wenn gar nichts mehr uebrig ist, ist es zu spaet.
+  // Folders, own boards, and shared boards removed from the library.
+  // Some of it may have come back already (a single board with its path):
+  // only when nothing is left at all is it too late.
   const n = Number(db.prepare('UPDATE ordner SET geloescht_am = NULL, vorgang = NULL WHERE nutzer_id = ? AND vorgang = ?')
     .run(nutzerId, v).changes)
     + Number(db.prepare('UPDATE board SET geloescht_am = NULL, vorgang = NULL WHERE nutzer_id = ? AND vorgang = ?')
@@ -244,7 +243,7 @@ export function wiederherstellen(nutzerId, vorgang) {
     + Number(db.prepare('UPDATE board_freigabe SET entfernt_am = NULL, vorgang = NULL WHERE email = ? AND vorgang = ?')
       .run(email, v).changes);
   if (!n) throw new NichtGefunden('undo_expired');
-  // Liegt ein Elternordner inzwischen selbst im Papierkorb, kommt er mit
+  // If a parent folder is itself in the trash by now, it comes back too
   for (const o of ordnerIds) if (o.eltern_id) pfadWiederherstellen(nutzerId, o.eltern_id);
   const ort = db.prepare('SELECT ordner_id FROM board_ort WHERE nutzer_id = ? AND board_id = ?');
   for (const b of boardIds) {

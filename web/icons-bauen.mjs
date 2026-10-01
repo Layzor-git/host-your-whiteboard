@@ -1,18 +1,18 @@
-// Erzeugt alle App-Symbole aus public/logo.svg. Nach einer Aenderung am
-// Logo einmal ausfuehren; die Dateien landen in public/ und gehen ins Git:
+// Generates all app icons from public/logo.svg. Run once after changing
+// the logo; the files land in public/ and are committed to Git:
 //
 //   node icons-bauen.mjs
 //
-// Drei Arten:
+// Three kinds:
 //
-//   logo-*.png            das Logo wie gezeichnet: abgerundete Kachel,
-//                         Ecken durchsichtig. Browser-Tab, Manifest "any".
-//   apple-touch-icon.png  randlos, iOS rundet die Ecken selbst ab. Mit
-//                         durchsichtigen Ecken saehe man auf dem
-//                         Home-Bildschirm schwarze Zwickel.
-//   logo-maskable-512     randlos und verkleinert: Android schneidet das
-//                         Symbol in Kreis, Tropfen oder Quadrat. Alles
-//                         Wichtige muss in den inneren 80 % liegen.
+//   logo-*.png            the logo as drawn: rounded tile, transparent
+//                         corners. Browser tab, manifest "any".
+//   apple-touch-icon.png  full-bleed, iOS rounds the corners itself. With
+//                         transparent corners you would see black wedges
+//                         on the home screen.
+//   logo-maskable-512     full-bleed and shrunk: Android crops the icon
+//                         into a circle, drop or square. Everything
+//                         important must be within the inner 80 %.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { Resvg } from '@resvg/resvg-js';
@@ -20,13 +20,13 @@ import { Resvg } from '@resvg/resvg-js';
 const logo = readFileSync('public/logo.svg', 'utf8');
 const GRUND = '#fbfbfa';
 
-// Der Inhalt ohne die umrandete Kachel (das erste <rect>)
+// The content without the bordered tile (the first <rect>)
 const innen = logo
   .replace(/^<svg[^>]*>/, '')
   .replace(/<\/svg>\s*$/, '')
   .replace(/<rect[^>]*>(<\/rect>)?/, '');
 
-/** Randlose Fassung: volle Flaeche in Grundfarbe, Inhalt um die Mitte skaliert. */
+/** Full-bleed version: whole area in the base color, content scaled around the center. */
 function randlos(massstab) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">`
     + `<rect width="64" height="64" fill="${GRUND}"/>`

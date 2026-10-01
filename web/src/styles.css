@@ -1,5 +1,5 @@
-/* Aussehen nach dem Design-Handoff. Farben, Radien und Schatten kommen aus
-   design/tokens.css (wb-light / wb-dark auf <html>). Hier nur Aufbau. */
+/* Look per the design handoff. Colors, radii and shadows come from
+   design/tokens.css (wb-light / wb-dark on <html>). Only layout here. */
 
 * { box-sizing: border-box; }
 
@@ -21,7 +21,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
 
 .fuellen { flex: 1; }
 
-/* ------------------------------------------------------------ Bausteine */
+/* ------------------------------------------------------ Building blocks */
 
 .leiste {
   position: absolute;
@@ -194,9 +194,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
 .menue-trenner { height: 1px; background: var(--ui-border); margin: 4px 8px; }
 .menue-scrim { position: fixed; inset: 0; z-index: 30; }
 
-/* Ueber "translate" statt "transform": Viele Popover sind per
-   transform: translateX(-50%) zentriert, und das darf die Animation nicht
-   ueberschreiben, sonst tauchen sie versetzt auf und springen dann. */
+/* Via "translate" instead of "transform": many popovers are centered with
+   transform: translateX(-50%), and the animation must not override that,
+   otherwise they appear offset and then jump. */
 @keyframes auftauchen {
   from { opacity: 0; translate: 0 4px; }
   to { opacity: 1; translate: 0 0; }
@@ -348,7 +348,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
   font-size: 14px;
 }
 
-/* ---------------------------------------------------------- Bibliothek */
+/* ------------------------------------------------------------- Library */
 
 .bibliothek { position: fixed; inset: 0; overflow: auto; background: var(--ui-bg); }
 
@@ -422,8 +422,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
 .bib-kopf .knopf-geist { color: var(--ui-text-2); padding: 0 14px 0 8px; border-radius: 14px; gap: 4px; }
 .bib-titel { font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
 .bib-kopf:has(.marke) { padding-bottom: 8px; }
-/* Schmal: Logo und Knoepfe in einer Zeile, die Suche darunter ueber die
-   ganze Breite, statt dass der Papierkorb allein umbricht. */
+/* Narrow: logo and buttons on one row, the search below across the full
+   width, instead of the trash wrapping on its own. */
 @media (max-width: 640px) {
   .bib-kopf:has(.marke) .marke { flex: 1; margin-right: 0; }
   .bib-kopf:has(.marke) .fuellen { display: none; }
@@ -627,8 +627,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
 .editor { position: fixed; inset: 0; overflow: hidden; user-select: none; -webkit-user-select: none; }
 
 .leinwand { position: absolute; inset: 0; overflow: hidden; overscroll-behavior: none; }
-/* Bis das Board geladen ist, nimmt die Leinwand nichts an: Was man vorher
-   zeichnete, wuerde das Laden ueberschreiben. */
+/* Until the board has loaded, the canvas accepts no input: anything drawn
+   before would be overwritten by the load. */
 .editor:not(.bereit) .leinwand { pointer-events: none; }
 
 .oben-links { top: 16px; left: 16px; max-width: calc(100% - 200px); }
@@ -785,9 +785,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
 }
 .zoom-wert:hover { background: var(--ui-hover); }
 
-/* ---------------------------------------------------------- Handy
-   Zum Ansehen nur schmale Leisten oben, unten "Alles anzeigen" und
-   "Bearbeiten". Beim Bearbeiten eine enge Werkzeugleiste ueber die Breite. */
+/* ---------------------------------------------------------- Phone
+   For viewing only narrow bars at the top, "Show all" and "Edit" at the
+   bottom. When editing, a compact toolbar across the width. */
 .editor.handy .oben-links { top: 10px; left: 10px; max-width: calc(100% - 20px - 150px); }
 .editor.handy .oben-rechts { top: 10px; right: 10px; }
 .editor.handy-bearbeiten .oben-links { max-width: calc(100% - 20px - 202px); }
@@ -843,7 +843,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
 .editor.handy .werkzeug-popover { bottom: 60px; }
 .editor.handy .kontextleiste { max-width: calc(100vw - 16px); }
 
-/* Auf schmalen Schirmen die Zoomleiste ueber die Werkzeugleiste heben */
+/* On narrow screens lift the zoom bar above the toolbar */
 @media (max-width: 860px) {
   .zoom-leiste { bottom: 92px; }
 }
@@ -857,7 +857,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
   pointer-events: none;
 }
 .auswahl-verschieben { position: absolute; inset: 0; pointer-events: auto; cursor: move; touch-action: none; }
-/* Linie/Pfeil: nur ein angedeuteter Rahmen, die Enden sind die Anfasser */
+/* Line/arrow: only a hinted frame, the ends are the handles */
 .auswahl-rahmen.nur-linie { border: 1px dashed var(--ui-accent); background: transparent; opacity: .9; }
 .anfasser.endpunkt { z-index: var(--z-selection); cursor: crosshair; }
 .anfasser.endpunkt span {
@@ -962,7 +962,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
 .winkel-chip > span:not(.kbd) { color: var(--ui-text-2); }
 .winkel-chip .kbd { font-size: 11px; padding: 3px 6px; color: var(--ui-text-2); border-bottom-width: 1px; }
 
-/* ------------------------------------------------------- Einstellungen */
+/* ------------------------------------------------------------ Settings */
 
 .einstellungen { gap: 0; padding: 0; }
 .einstellungen .dialog-kopf { padding: 18px 16px 8px 28px; margin: 0; }
@@ -991,7 +991,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
 }
 .testflaeche { isolation: isolate; }
 .testflaeche .leinwand { position: absolute; inset: 0; z-index: 0; }
-/* Safari legt beschleunigte Canvas sonst ueber Geschwister ohne z-index */
+/* Otherwise Safari puts accelerated canvases above siblings without z-index */
 .test-platzhalter, .test-leeren { z-index: 1; }
 .test-platzhalter {
   position: absolute;
@@ -1031,7 +1031,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
 .kuerzel-tasten { display: flex; gap: 4px; }
 .baustand { font-size: 12px; color: var(--ui-text-3); }
 
-/* ----------------------------------------------------------- Labor */
+/* ------------------------------------------------------------- Lab */
 
 .labor-leiste {
   position: fixed;
@@ -1079,7 +1079,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
 .labor-zahlen dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .klein { font-size: 13px; color: var(--ui-text-2); }
 
-/* ------------------------------------------------ V2: Teilen & Anwesenheit */
+/* -------------------------------------------------- V2: Sharing & presence */
 
 .avatar {
   flex: none;
@@ -1285,9 +1285,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
 .teilen-fuss { flex: 1; font-size: 12.5px; color: var(--ui-text-3); }
 .einladen-recht-handy { display: none; }
 
-/* Handy: E-Mail ueber die ganze Breite, darunter Recht und "Einladen".
-   In der Liste bekommen Name und Adresse die Zeile, das Recht rutscht
-   darunter. */
+/* Phone: email across the full width, permission and "Invite" below.
+   In the list, name and address get the row, the permission moves
+   below. */
 @media (max-width: 520px) {
   .teilen-dialog { padding: 20px 16px 16px; }
   .einladen-zeile { flex-wrap: wrap; }
@@ -1300,13 +1300,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
   .person-zeile { flex-wrap: wrap; column-gap: 12px; row-gap: 0; padding: 8px 0; }
   .person-text { flex: 1 1 0; }
   .person-zeile > .entfernen-knopf { order: 1; }
-  /* erzwungener Umbruch vor der Rechtewahl */
+  /* forced line break before the permission select */
   .person-zeile:has(> .recht-knopf)::after { content: ''; order: 2; flex-basis: 100%; height: 0; }
   .person-zeile > .recht-knopf.gross { order: 3; margin-left: 42px; height: 36px; }
   .person-rechte { left: 48px; right: auto; }
 }
 
-/* ---------------------------------------------------------- V2: Bilder */
+/* ---------------------------------------------------------- V2: Images */
 
 .bild-menue { width: 292px; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
 .bild-hinweis { padding: 4px 12px 8px; font-size: 12.5px; line-height: 1.45; color: var(--ui-text-3); text-wrap: pretty; }
@@ -1393,7 +1393,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
 .ablege-text > :first-child { font-size: 15px; font-weight: 600; }
 .ablege-text > :last-child { font-size: 13px; color: var(--ui-text-3); }
 
-/* ---------------------------------------------------------- V2: Ordner */
+/* --------------------------------------------------------- V2: Folders */
 
 .brotkrumen { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
 .brotkrumen-glied { display: inline-flex; align-items: center; gap: 2px; }
@@ -1547,7 +1547,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
   cursor: pointer;
 }
 
-/* ---------------------------------------------------------- Ordner teilen */
+/* -------------------------------------------------------- Sharing folders */
 .ordner-personen { flex: none; display: flex; align-items: center; margin-right: 2px; }
 .fremd-hinweis {
   flex: none;
@@ -1565,7 +1565,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
 }
 .person-zeile.ueber-ordner .person-text > :first-child { font-weight: 500; }
 
-/* ---------------------------------------------------------- Papierkorb: Ordner */
+/* -------------------------------------------------------------- Trash: folders */
 .korb-abschnitt { padding: 14px 32px 2px; font-size: 13px; font-weight: 600; color: var(--ui-text-2); letter-spacing: .01em; }
 .korb-abschnitt > span { font-weight: 400; color: var(--ui-text-3); }
 @media (max-width: 600px) { .korb-abschnitt { padding-left: 16px; padding-right: 16px; } }
@@ -1602,7 +1602,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
 .korb-pfeil { flex: none; color: var(--ui-text-3); transition: transform var(--dur-fast); }
 .korb-ordner.offen .korb-pfeil { transform: rotate(180deg); }
 
-/* ---------------------------------------------------------- Konto / Abmelden */
+/* -------------------------------------------------------- Account / sign-out */
 .ich-halter { position: relative; flex: none; }
 .ich-knopf {
   width: 44px;
@@ -1622,6 +1622,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ui-accent);
 .knopf-gefahr:disabled { opacity: .5; cursor: default; }
 .abmelden-warnung { color: var(--ui-warn); background: var(--ui-warn-soft); padding: 10px 12px; border-radius: 12px; }
 
-/* Sprachwahl im Konto-Menue der Bibliothek */
+/* Language selection in the library's account menu */
 .ich-sprache { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 8px 6px 12px; font-size: 14px; color: var(--ui-text-2); }
 .ich-sprache .segmente button { padding: 0 12px; }

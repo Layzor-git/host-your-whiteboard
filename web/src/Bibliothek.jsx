@@ -21,9 +21,9 @@ import TeilenDialog from './editor/TeilenDialog.jsx';
 import AbmeldenDialog from './ui/AbmeldenDialog.jsx';
 import { SPRACHEN, sprache, t, useT } from './i18n/index.js';
 
-// Startseite: Ordner und Boards als Kacheln, dazu Papierkorb, Anlegen und
-// Import. ansicht: 'raster' oder 'papierkorb'; ordnerId: wo man gerade ist
-// (beides kommt aus der Adresse).
+// Home page: folders and boards as tiles, plus trash, create and import.
+// ansicht: 'raster' or 'papierkorb'; ordnerId: where you are right now
+// (both come from the URL).
 
 const VORLAGEN = ['none', 'dots', 'grid', 'lines'];
 const eigen = (b) => !b.recht || b.recht === 'besitzer';
@@ -40,9 +40,9 @@ export default function Bibliothek({ ansicht, ordnerId = null, oeffnen, meldung 
   const [verschiebenWas, setVerschiebenWas] = useState(null);
   const [loeschenOrdner, setLoeschenOrdner] = useState(null);
   const [ziehen, setZiehen] = useState(null);   // { art: 'board'|'ordner', id }
-  const [ablage, setAblage] = useState(null);   // Ordner-Id unter dem Zeiger
+  const [ablage, setAblage] = useState(null);   // folder id under the pointer
   const [teilenOrdner, setTeilenOrdner] = useState(null);
-  const [korbOffen, setKorbOffen] = useState(null); // aufgeklappter Ordner im Papierkorb (vorgang)
+  const [korbOffen, setKorbOffen] = useState(null); // expanded folder in the trash (vorgang)
   const [abmeldenOffen, setAbmeldenOffen] = useState(false);
   const [toast, zeigen] = useToast();
   const dateiFeld = useRef(null);
@@ -62,7 +62,7 @@ export default function Bibliothek({ ansicht, ordnerId = null, oeffnen, meldung 
   useEffect(() => { neuLaden(); }, [neuLaden]);
 
   const ordner = liste?.ordner ?? [];
-  // Ein Ordner, den es (nicht mehr) gibt: oben weitermachen
+  // A folder that does not exist (any more): continue at the top
   const cur = ordnerId && ordner.some((o) => o.id === ordnerId) ? ordnerId : null;
   const ordnerOeffnen = (id) => { location.hash = id ? `#/ordner/${encodeURIComponent(id)}` : '#/'; };
   useEffect(() => { setMenueFuer(null); setSuche(''); }, [ordnerId]);
@@ -105,10 +105,10 @@ export default function Bibliothek({ ansicht, ordnerId = null, oeffnen, meldung 
         titel, hintergrund: daten.hintergrund, daten: { version: 1, elemente: daten.elemente },
         ordnerId: istFremd(aktuellerOrdner()) ? null : cur,
       });
-      // Eingebettete Bilder unter ihren alten Ids zum neuen Board
+      // Embedded images under their old ids to the new board
       if (bilder && Object.keys(bilder).length) await bilderHochladen(meta.id, bilder);
-      // Vorschaubild gleich mitschicken, sonst bleibt die Kachel leer, bis
-      // das Board einmal geoeffnet wurde.
+      // Send the thumbnail right away, otherwise the tile stays empty until
+      // the board has been opened once.
       const dok = new Dokument();
       dok.laden(daten);
       const bild = vorschauBild(dok);
@@ -125,7 +125,7 @@ export default function Bibliothek({ ansicht, ordnerId = null, oeffnen, meldung 
     }
   }
 
-  /** Board oder Ordner woandershin, mit Rueckgaengig. */
+  /** Move a board or folder elsewhere, with undo. */
   async function verschieben(was, ziel) {
     const zielName = ziel ? ordner.find((o) => o.id === ziel)?.name : t('common.library');
     const zurueck = was.ort ?? null;
@@ -154,10 +154,10 @@ export default function Bibliothek({ ansicht, ordnerId = null, oeffnen, meldung 
   }
   if (!liste) return <div className="bibliothek" />;
 
-  // ---- Was ist zu sehen?
+  // ---- What is there to see?
   const filter = e.bibFilter ?? 'alle';
   const q = suche.trim().toLowerCase();
-  // Suche oder Filter zeigen ordneruebergreifend, mit Pfad auf jeder Kachel
+  // Search or filter show results across folders, with the path on every tile
   const global = !!q || filter !== 'alle';
   let boards = liste.boards;
   if (filter === 'meine') boards = boards.filter(eigen);
@@ -170,8 +170,8 @@ export default function Bibliothek({ ansicht, ordnerId = null, oeffnen, meldung 
     : ordner.filter((o) => (o.elternId ?? null) === cur);
   sichtbareOrdner = [...sichtbareOrdner].sort((a, b) => a.name.localeCompare(b.name, 'de'));
   const aktuell = ordner.find((o) => o.id === cur);
-  // In einem fremden (geteilten) Ordner: ansehen und oeffnen, aber nichts
-  // anlegen oder hineinlegen, er gehoert jemand anderem
+  // In someone else's (shared) folder: view and open, but do not create or
+  // put anything in, it belongs to someone else
   const fremdHier = istFremd(aktuell);
   const eigeneOrdner = ordner.filter((o) => !istFremd(o));
   const allesLeer = !liste.boards.length && !ordner.length;
@@ -180,7 +180,7 @@ export default function Bibliothek({ ansicht, ordnerId = null, oeffnen, meldung 
     ? t('library.results', { suche: suche.trim() })
     : filter === 'geteilt' ? t('library.sharedAll') : t('library.mineAll');
   const papierkorb = liste.papierkorb;
-  // Geloeschte Ordner; Boards, die mit einem von ihnen gingen, liegen darin
+  // Deleted folders; boards that went with one of them are inside it
   const korbOrdner = liste.papierkorbOrdner ?? [];
   const korbVorgaenge = new Set(korbOrdner.map((o) => o.vorgang));
   const loseImKorb = papierkorb.filter((b) => !korbVorgaenge.has(b.vorgang));
@@ -229,7 +229,7 @@ export default function Bibliothek({ ansicht, ordnerId = null, oeffnen, meldung 
     return teile.length ? teile.join(' · ') : t('common.empty');
   };
 
-  // ---- Ziehen und Ablegen (Desktop)
+  // --------- Drag and drop (desktop)
   const zielFuer = (id) => (istFremd(ordner.find((o) => o.id === id)) ? {} : ablageZiel(id, {
     ziehen,
     ablage,
@@ -256,7 +256,7 @@ export default function Bibliothek({ ansicht, ordnerId = null, oeffnen, meldung 
   };
   const ziehenEnde = () => { setZiehen(null); setAblage(null); };
 
-  // Zaehler fuer "Ordner loeschen?"
+  // Counts for "Delete folder?"
   const loeschenZaehler = (() => {
     if (!loeschenOrdner) return null;
     const ids = teilbaum(loeschenOrdner.id, ordner);
@@ -373,7 +373,7 @@ export default function Bibliothek({ ansicht, ordnerId = null, oeffnen, meldung 
         </>
       ) : (
         <>
-          {/* Zeile 1: Logo, Suche, Import, Papierkorb (Design V2, 3a) */}
+          {/* Row 1: logo, search, import, trash (design V2, 3a) */}
           <header className="bib-kopf">
             <div className="marke"><Logo /><span>{t('app.name')}</span></div>
             <label className="suche">
@@ -450,7 +450,7 @@ export default function Bibliothek({ ansicht, ordnerId = null, oeffnen, meldung 
             />
           </header>
 
-          {/* Zeile 2: Pfad bzw. Treffer, Neuer Ordner, Filter, Sortierung */}
+          {/* Row 2: path or results, new folder, filter, sorting */}
           {!allesLeer && (
             <div className="bib-zeile2">
               {global ? (
@@ -638,7 +638,7 @@ export default function Bibliothek({ ansicht, ordnerId = null, oeffnen, meldung 
         anlegen={async (titel, muster) => {
           setNeuOffen(false);
           try {
-            // Im Dunkelmodus startet ein neues Board auf der dunklen Tafel
+            // In dark mode a new board starts on the dark chalkboard
             const farbe = aktivesTheme(e.darstellung) === 'dark' ? 'slate' : 'white';
             const meta = await boardAnlegen({ titel, hintergrund: { farbe, muster }, ordnerId: cur });
             oeffnen(meta.id);
@@ -663,7 +663,7 @@ export default function Bibliothek({ ansicht, ordnerId = null, oeffnen, meldung 
         loeschen={() => {
           const o = loeschenOrdner;
           setLoeschenOrdner(null);
-          // Wer gerade in dem Ordner (oder darunter) war, landet eine Ebene hoeher
+          // Whoever was in that folder (or below it) ends up one level higher
           if (cur && teilbaum(o.id, ordner).has(cur)) ordnerOeffnen(o.elternId ?? null);
           aktion(
             () => api.ordnerLoeschen(o.id),
@@ -693,7 +693,7 @@ export default function Bibliothek({ ansicht, ordnerId = null, oeffnen, meldung 
   );
 }
 
-/** Wer ausser mir: bei eigenen die Eingeladenen, bei fremden der Besitzer. */
+/** Who besides me: for own boards the invited people, for others' the owner. */
 function teilenInfo(board) {
   if (board.recht && board.recht !== 'besitzer' && board.besitzer) {
     return {
@@ -736,7 +736,7 @@ function BoardKachel({
 
   useEffect(() => { setTitel(board.titel); }, [board.titel]);
 
-  // Langes Druecken (>= 500 ms) oeffnet das Menue, wie auf dem iPad ueblich.
+  // A long press (>= 500 ms) opens the menu, as usual on the iPad.
   const langDruecken = {
     onPointerDown: (e) => {
       if (e.pointerType === 'mouse') return;

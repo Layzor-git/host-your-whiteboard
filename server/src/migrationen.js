@@ -1,9 +1,8 @@
-// Durchnummerierte Migrationen. Werden beim Start der Reihe nach
-// ausgefuehrt, jede genau einmal.
+// Numbered migrations. Run in order at startup, each exactly once.
 //
-// NIE eine bestehende Migration aendern, immer eine neue anhaengen. Wer
-// Migration 1 nachtraeglich korrigiert, aendert nur Datenbanken, die es
-// noch nicht gibt: Auf dem Pi steht sie laengst als erledigt eingetragen.
+// NEVER change an existing migration, always append a new one. Fixing
+// migration 1 after the fact only changes databases that do not exist
+// yet: on the Pi it has long been recorded as done.
 
 export const migrationen = [
   {
@@ -148,16 +147,16 @@ export const migrationen = [
     `,
   },
 
-  // Die naechste Tabelle kommt als neuer Eintrag hierher, id: 8.
+  // The next table goes here as a new entry, id: 8.
   //
-  // Drei Spalten lohnen sich fast immer am Ende einer Tabelle, auch wenn
-  // man sie heute noch nicht braucht:
+  // Three columns are almost always worth having at the end of a table,
+  // even if you do not need them yet:
   //
   //   erstellt_am   TEXT NOT NULL
-  //   geaendert_am  TEXT NOT NULL   macht spaeter ein Delta moeglich
-  //   geloescht_am  TEXT            Grabstein statt echtem Loeschen
+  //   geaendert_am  TEXT NOT NULL   makes a delta possible later
+  //   geloescht_am  TEXT            tombstone instead of a real delete
   //
-  // Ohne Grabstein taucht ein geloeschter Eintrag beim naechsten Abgleich
-  // vom anderen Geraet wieder auf, weil dort niemand weiss, dass er weg
-  // soll. Nachtraeglich einzufuehren ist muehsam.
+  // Without a tombstone a deleted entry reappears on the next sync from the
+  // other device, because nobody there knows it should be gone. Adding it
+  // after the fact is tedious.
 ];

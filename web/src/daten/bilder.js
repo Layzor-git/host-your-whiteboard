@@ -1,9 +1,9 @@
-// Bilder vorbereiten und hochladen.
+// Prepare and upload images.
 //
-// Vorbereiten: Der Browser dekodiert das Bild (auch HEIC auf dem iPad) und
-// misst es aus. Sehr grosse Fotos (laengste Seite ueber 4096 px) und
-// Formate, die nicht jeder Browser anzeigen kann (HEIC), werden dabei neu
-// kodiert. So bleibt der Pi schlank und das Bild laeuft auch am PC.
+// Prepare: the browser decodes the image (including HEIC on the iPad) and
+// measures it. Very large photos (longest side over 4096 px) and formats
+// not every browser can display (HEIC) are re-encoded in the process. That
+// keeps the Pi lean, and the image also works on the PC.
 
 import { api, KeinNetz, serverMeldung } from '../api.js';
 import { t } from '../i18n/index.js';
@@ -32,8 +32,8 @@ function alsBlob(canvas, typ, qualitaet) {
 }
 
 /**
- * Prueft und bereitet eine Datei vor. Liefert { blob, breite, hoehe,
- * vorschau (Object-URL) } oder wirft einen Fehler mit lesbarem Satz.
+ * Checks and prepares a file. Returns { blob, breite, hoehe,
+ * vorschau (object URL) } or throws an error with a readable sentence.
  */
 export async function bildVorbereiten(datei) {
   if (datei.size > MAX_BYTES) {
@@ -46,8 +46,8 @@ export async function bildVorbereiten(datei) {
   const zuGross = Math.max(breite, hoehe) > MAX_SEITE;
   if (DIREKT.includes(datei.type) && !zuGross) return { blob: datei, breite, hoehe, vorschau };
 
-  // Neu kodieren: verkleinert und als WebP (Safari kann kein WebP
-  // schreiben, dann JPEG; PNG bleibt PNG, wegen der Transparenz)
+  // Re-encode: downscaled and as WebP (Safari cannot write WebP, then
+  // JPEG; PNG stays PNG, because of transparency)
   const f = Math.min(1, MAX_SEITE / Math.max(breite, hoehe));
   const c = document.createElement('canvas');
   c.width = Math.round(breite * f);
@@ -71,8 +71,8 @@ export function neueBildId() {
 }
 
 /**
- * Hochladen mit Fortschritt (fetch kann das nicht, darum XHR).
- * beiFortschritt(0..1). Liefert die Bild-Id.
+ * Upload with progress (fetch cannot do that, hence XHR).
+ * beiFortschritt(0..1). Returns the image id.
  */
 export function bildHochladen(boardId, blob, { id = neueBildId(), breite, hoehe } = {}, beiFortschritt) {
   return new Promise((ok, fehler) => {
@@ -87,7 +87,7 @@ export function bildHochladen(boardId, blob, { id = neueBildId(), breite, hoehe 
         return;
       }
       let text = t('upload.failedStatus', { status: xhr.status });
-      try { text = serverMeldung(JSON.parse(xhr.responseText)); } catch { /* kein JSON */ }
+      try { text = serverMeldung(JSON.parse(xhr.responseText)); } catch { /* not JSON */ }
       fehler(xhr.status >= 500 || xhr.status === 0 ? new KeinNetz(text) : new Error(text));
     };
     xhr.onerror = () => fehler(new KeinNetz(t('error.offline')));
@@ -95,7 +95,7 @@ export function bildHochladen(boardId, blob, { id = neueBildId(), breite, hoehe 
   });
 }
 
-// ------------------------------------------------------ fuer .whiteboard
+// ------------------------------------------------------- for .whiteboard
 
 function alsDataUrl(blob) {
   return new Promise((ok, fehler) => {
@@ -106,7 +106,7 @@ function alsDataUrl(blob) {
   });
 }
 
-/** Alle Bilder eines Boards als { id: dataUrl } fuer die Export-Datei. */
+/** All images of a board as { id: dataUrl } for the export file. */
 export async function bilderEinsammeln(boardId, elemente) {
   const ids = [...new Set(elemente.filter((el) => el.typ === 'bild').map((el) => el.bild))];
   const bilder = {};
@@ -115,13 +115,13 @@ export async function bilderEinsammeln(boardId, elemente) {
       const a = await fetch(api.bildUrl(boardId, id));
       if (a.ok) bilder[id] = await alsDataUrl(await a.blob());
     } catch {
-      // fehlt eben in der Datei; das Board bleibt trotzdem vollstaendig
+      // then it is simply missing from the file; the board is still complete
     }
   }
   return bilder;
 }
 
-/** Bilder aus einer Export-Datei unter ihren alten Ids hochladen. */
+/** Upload images from an export file under their old ids. */
 export async function bilderHochladen(boardId, bilder) {
   for (const [id, dataUrl] of Object.entries(bilder ?? {})) {
     const blob = await (await fetch(dataUrl)).blob();

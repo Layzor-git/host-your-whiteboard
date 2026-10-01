@@ -1,4 +1,4 @@
-// Dateien herunterladen, mit einem Namen, den jedes Betriebssystem mag.
+// Download files, with a name every operating system likes.
 
 export function dateiname(titel) {
   return (titel || 'Whiteboard').replace(/[\\/:*?"<>|]+/g, '_').trim() || 'Whiteboard';

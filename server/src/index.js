@@ -9,23 +9,23 @@ import { allesSpeichern } from './live.js';
 import { kennfarbe } from './freigaben.js';
 
 const app = Fastify({
-  // Ein Board wird am Stueck gespeichert. Grosse Boards mit tausenden
-  // Strichen kommen auf einige Megabyte.
+  // A board is saved in one piece. Large boards with thousands of
+  // strokes reach several megabytes.
   bodyLimit: 32 * 1024 * 1024,
   logger: {
     level: config.istProduktion ? 'info' : 'debug',
-    // Kein Klartext-Zeug ins Log: Kopfzeilen enthalten das Access-Token.
+    // No plain-text stuff in the log: headers contain the Access token.
     redact: ['req.headers.cf-access-jwt-assertion', 'req.headers.cookie'],
   },
 });
 
-// Datenbank beim Start oeffnen und migrieren, nicht erst beim ersten Aufruf.
-// So faellt ein Migrationsfehler beim Ausrollen auf und nicht beim Nutzer.
+// Open and migrate the database at startup, not on the first request.
+// That way a migration error shows up during rollout, not for the user.
 datenbank();
 
-// Manche Endpunkte brauchen keinen Body. Fastify weist einen leeren Body ab,
-// sobald der Client trotzdem "content-type: application/json" mitschickt,
-// und das tun Clients gern. Ein leerer Body gilt hier als {}.
+// Some endpoints need no body. Fastify rejects an empty body as soon as
+// the client still sends "content-type: application/json", and clients
+// like to do that. An empty body counts as {} here.
 app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, koerper, fertig) => {
   if (!koerper || !koerper.trim()) return fertig(null, {});
   try {
@@ -37,13 +37,13 @@ app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, koerpe
   }
 });
 
-// Bilder kommen als Rohdaten. Das Format prueft bilder.js am Dateianfang.
+// Images arrive as raw data. bilder.js checks the format at the start of the file.
 app.addContentTypeParser(/^image\//, { parseAs: 'buffer' }, (req, koerper, fertig) => fertig(null, koerper));
 
-// Jede Anfrage unter /api/v1 bekommt den angemeldeten Nutzer angehaengt.
+// Every request under /api/v1 gets the signed-in user attached.
 app.addHook('preHandler', async (req) => {
   if (!req.url.startsWith('/api/v1/')) return;
-  if (req.url === '/api/v1/health') return; // Fuer curl vom Pi aus, ohne Anmeldung
+  if (req.url === '/api/v1/health') return; // For curl on the Pi, without sign-in
 
   const email = await emailAusRequest(req);
   req.nutzer = nutzerHolenOderAnlegen(email);
@@ -51,8 +51,8 @@ app.addHook('preHandler', async (req) => {
 
 app.setErrorHandler((fehler, req, antwort) => {
   if (fehler instanceof NichtAngemeldet) {
-    // Der Grund gehoert ins Protokoll, sonst sucht man auf dem Pi im Dunkeln
-    req.log.warn(`Anmeldung abgelehnt: ${fehler.message}`);
+    // The reason belongs in the log, otherwise you search in the dark on the Pi
+    req.log.warn(`Sign-in rejected: ${fehler.message}`);
     return antwort.code(401).send({ fehler: 'nicht_angemeldet', text: fehler.message });
   }
   if (fehler instanceof Ungueltig) {
@@ -64,8 +64,8 @@ app.setErrorHandler((fehler, req, antwort) => {
   if (fehler instanceof NichtGefunden) {
     return antwort.code(404).send({ fehler: 'nicht_gefunden', code: fehler.code, text: fehler.message });
   }
-  // Fastify-eigene Fehler (kaputtes JSON, zu grosser Body) tragen bereits
-  // den richtigen Code. Die als 500 auszugeben verschleierte die Ursache.
+  // Fastify's own errors (broken JSON, body too large) already carry the
+  // right code. Reporting them as 500 would hide the cause.
   if (fehler.statusCode >= 400 && fehler.statusCode < 500) {
     return antwort.code(fehler.statusCode).send({ fehler: 'ungueltig', text: fehler.message });
   }
@@ -73,19 +73,19 @@ app.setErrorHandler((fehler, req, antwort) => {
   return antwort.code(500).send({ fehler: 'serverfehler' });
 });
 
-// Lebenszeichen. Absichtlich ohne Anmeldung, damit
+// Health check. Deliberately without sign-in, so that
 //   curl -s http://127.0.0.1:8083/api/v1/health
-// direkt auf dem Pi funktioniert.
+// works directly on the Pi.
 app.get('/api/v1/health', async () => ({
   ok: true,
   stand: jetzt(),
-  // Damit im Profil sichtbar ist, ob Server und Web-App vom selben
-  // Ausrollen stammen.
+  // So the profile shows whether server and web app come from the same
+  // rollout.
   baustand: config.baustand,
 }));
 
-// Wer bin ich? Der Beweis, dass die Kette Handy, Access, Tunnel, Caddy,
-// API, Datenbank vollstaendig steht.
+// Who am I? Proof that the whole chain phone, Access, tunnel, Caddy,
+// API, database is in place.
 app.get('/api/v1/me', async (req) => ({
   id: req.nutzer.id,
   email: req.nutzer.email,
@@ -93,17 +93,17 @@ app.get('/api/v1/me', async (req) => ({
   rolle: req.nutzer.rolle,
   farbe: kennfarbe(req.nutzer.id),
   abmelden: abmeldenUrl(),
-  // Welche Anmeldung davor sitzt, fuer passende Hinweise in der App
+  // Which sign-in sits in front, for matching hints in the app
   anmeldung: config.entwicklerEmail ? 'dev' : config.auth.modus,
 }));
 
-// Grosse Boards kommen beim Verbinden am Stueck, darum dasselbe Limit wie
-// fuer normale Anfragen.
+// Large boards arrive in one piece when connecting, hence the same limit
+// as for normal requests.
 await app.register(websocket, { options: { maxPayload: 32 * 1024 * 1024 } });
 routenRegistrieren(app);
 
-// Beim Herunterfahren (neues Image, Neustart des Pi) nichts verlieren, was
-// noch im Speicher eines offenen Boards liegt.
+// On shutdown (new image, Pi restart) do not lose anything that is still
+// in the memory of an open board.
 for (const signal of ['SIGTERM', 'SIGINT']) {
   process.on(signal, async () => {
     allesSpeichern();

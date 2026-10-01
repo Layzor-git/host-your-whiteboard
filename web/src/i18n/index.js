@@ -1,14 +1,14 @@
-// Uebersetzungen. Englisch ist Standard, Deutsch waehlbar in den
-// Einstellungen. Die Texte stehen in en.js und de.js unter denselben
-// Schluesseln; i18n-pruefen.mjs stellt vor jedem Bau sicher, dass beide
-// vollstaendig sind und dieselben Platzhalter benutzen.
+// Translations. English is the default, German can be selected in the
+// settings. The texts live in en.js and de.js under the same keys;
+// i18n-pruefen.mjs makes sure before every build that both are complete
+// and use the same placeholders.
 //
-//   t('common.library')                        einfacher Text
-//   t('count.boards', { anzahl: 3 })           Mehrzahl: { one, other }
-//   t('share.added', { email: 'a@b.de' })      Platzhalter {email}
+//   t('common.library')                        plain text
+//   t('count.boards', { anzahl: 3 })           plural: { one, other }
+//   t('share.added', { email: 'a@b.de' })      placeholder {email}
 //
-// In Komponenten useT() statt t(): Dann zeichnen sie sich beim Umschalten
-// der Sprache neu.
+// In components use useT() instead of t(): then they re-render when the
+// language is switched.
 
 import { useMemo } from 'react';
 import { abonnieren, einstellungen, useEinstellungen } from '../daten/einstellungen.js';
@@ -27,7 +27,7 @@ export function sprache() {
   return BUECHER[s] ? s : 'en';
 }
 
-/** Gibt es diesen Schluessel? (Fuer Codes vom Server, die nicht jeder kennt.) */
+/** Does this key exist? (For codes from the server that not everyone knows.) */
 export function gibtEs(schluessel) {
   return schluessel in BUECHER.en;
 }
@@ -35,8 +35,8 @@ export function gibtEs(schluessel) {
 export function t(schluessel, werte = {}, s = sprache()) {
   let eintrag = BUECHER[s][schluessel] ?? BUECHER.en[schluessel];
   if (eintrag === undefined) {
-    // Faellt im Bau schon auf (i18n-pruefen.mjs); zur Laufzeit lieber den
-    // Schluessel zeigen als abzustuerzen.
+    // Already caught at build time (i18n-pruefen.mjs); at runtime better
+    // show the key than crash.
     return schluessel;
   }
   if (typeof eintrag === 'object') {
@@ -46,7 +46,7 @@ export function t(schluessel, werte = {}, s = sprache()) {
   return eintrag.replace(/\{(\w+)\}/g, (ganz, k) => (werte[k] !== undefined ? String(werte[k]) : ganz));
 }
 
-/** t() fuer Komponenten: zeichnet neu, wenn die Sprache wechselt. */
+/** t() for components: re-renders when the language changes. */
 export function useT() {
   const s = useEinstellungen().sprache;
   return useMemo(() => {
@@ -55,7 +55,7 @@ export function useT() {
   }, [s]);
 }
 
-/** lang-Attribut von <html> nachziehen (Silbentrennung, Screenreader). */
+/** Keep the lang attribute of <html> in sync (hyphenation, screen readers). */
 export function spracheAnwenden() {
   const setzen = () => { document.documentElement.lang = sprache(); };
   setzen();

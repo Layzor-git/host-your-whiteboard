@@ -1,13 +1,12 @@
-// Durchtest der Grundlagen.
+// End-to-end test of the basics.
 //   npm test
 //
-// Kein Rahmenwerk, keine Abhaengigkeit: ein Skript, das den Server in
-// einem eigenen Prozess startet, gegen eine frische Datenbank in einem
-// temporaeren Verzeichnis spricht und am Ende aufraeumt. Die
-// Entwicklungsdaten bleiben unangetastet.
+// No framework, no dependency: a script that starts the server in its own
+// process, talks to a fresh database in a temporary directory and cleans
+// up at the end. The development data stays untouched.
 //
-// Der Wert steckt in den Namen: Ein Test heisst nach der Zusage, die er
-// haelt, nicht nach der Funktion, die er aufruft.
+// The value is in the names: a test is named after the promise it keeps,
+// not after the function it calls.
 
 import { spawn } from 'node:child_process';
 import { rmSync, mkdtempSync } from 'node:fs';
@@ -41,13 +40,13 @@ function pruefe(name, bedingung, zusatz = '') {
 function beenden(code) {
   server.kill();
   setTimeout(() => {
-    try { rmSync(datenVerzeichnis, { recursive: true, force: true }); } catch { /* egal */ }
+    try { rmSync(datenVerzeichnis, { recursive: true, force: true }); } catch { /* ignore */ }
     process.exit(code);
   }, 300);
 }
 
 for (let versuch = 0; ; versuch++) {
-  try { if ((await fetch(`${BASIS}/health`)).ok) break; } catch { /* noch nicht da */ }
+  try { if ((await fetch(`${BASIS}/health`)).ok) break; } catch { /* not up yet */ }
   if (versuch > 60) { console.error('Server startet nicht:\n' + ausgabe); beenden(1); }
   await new Promise((r) => setTimeout(r, 100));
 }
@@ -71,7 +70,7 @@ const ich = await api('/me');
 pruefe('Wer anklopft, bekommt einen Datensatz', ich.daten?.email === 'test@whiteboard.local',
   JSON.stringify(ich.daten));
 
-// Zweimal dieselbe Adresse darf keinen zweiten Nutzer anlegen.
+// The same address twice must not create a second user.
 const nochmal = await api('/me');
 pruefe('Und beim zweiten Mal denselben', nochmal.daten.id === ich.daten.id);
 
@@ -144,7 +143,7 @@ pruefe('Papierkorb leeren löscht endgültig', leeren.daten?.geloescht === 1 && 
 
 console.log('\n--- Live ---');
 
-// Ein Geraet: sammelt Nachrichten und kann auf eine bestimmte warten.
+// A device: collects messages and can wait for a specific one.
 function geraet(boardId, kopf = {}) {
   const ws = new WebSocket(`ws://127.0.0.1:${PORT}/api/v1/boards/${boardId}/live`, { headers: kopf });
   const post = [];
@@ -349,7 +348,7 @@ let alle = (await api('/boards')).daten;
 pruefe('Ein Board entsteht im gewählten Ordner',
   alle.boards.find((b) => b.id === imOrdner.id)?.ordnerId === projekt.id && alle.ordner.length === 2);
 
-// Ein geteiltes Board legt jede Person selbst ab
+// Every person files a shared board themselves
 await api('/boards/b_vomgeraet1/freigaben', { method: 'POST', body: { email: 'zweite@whiteboard.local', recht: 'bearbeiten' } });
 const bOrdner = (await api('/ordner', { method: 'POST', headers: B, body: { name: 'Von anderen' } })).daten;
 await api('/boards/b_vomgeraet1/ort', { method: 'PUT', headers: B, body: { ordnerId: bOrdner.id } });
@@ -357,7 +356,7 @@ pruefe('Ein geteiltes Board liegt bei jeder Person woanders',
   (await api('/boards', { headers: B })).daten.boards.find((b) => b.id === 'b_vomgeraet1')?.ordnerId === bOrdner.id
   && (await api('/boards')).daten.boards.find((b) => b.id === 'b_vomgeraet1')?.ordnerId === null);
 
-// B teilt ein eigenes Board mit mir; ich lege es in meinen Projektordner
+// B shares one of their own boards with me; I put it into my project folder
 const vonB = (await api('/boards', { method: 'POST', headers: B, body: { titel: 'Von B' } })).daten;
 await api(`/boards/${vonB.id}/freigaben`, { method: 'POST', headers: B, body: { email: 'test@whiteboard.local' } });
 await api(`/boards/${vonB.id}/ort`, { method: 'PUT', body: { ordnerId: projekt.id } });
@@ -461,7 +460,7 @@ await api(`/boards/${bY.id}/wiederherstellen`, { method: 'POST' });
 pruefe('Auch das zweite Board landet wieder im alten Ordner',
   (await api('/boards')).daten.boards.find((b) => b.id === bY.id)?.ordnerId === oA.id);
 
-// Erst den Unterordner löschen, dann den Ordner darüber: zwei Einträge
+// Delete the subfolder first, then the folder above it: two entries
 const wegB = (await api(`/ordner/${oB.id}`, { method: 'DELETE' })).daten;
 const wegA2 = (await api(`/ordner/${oA.id}`, { method: 'DELETE' })).daten;
 korb = (await api('/boards')).daten;

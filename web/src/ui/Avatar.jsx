@@ -1,6 +1,6 @@
-// Avatare mit Initialen in der Kennfarbe der Person (Design V2, 7a-7j).
-// Wer sich noch nie angemeldet hat, bekommt einen neutralen Kreis mit dem
-// ersten Buchstaben der Adresse.
+// Avatars with initials in the person's peer color (design V2, 7a-7j).
+// Someone who has never signed in gets a neutral circle with the first
+// letter of the address.
 
 export function initialen(p) {
   if (p?.name) {
@@ -9,7 +9,7 @@ export function initialen(p) {
   return (p?.email?.[0] ?? '?').toUpperCase();
 }
 
-/** Vorname bzw. erster Teil des Namens, sonst die Adresse. */
+/** First name or first part of the name, otherwise the address. */
 export function rufname(p) {
   return p?.name ? p.name.split(/\s+/)[0] : p?.email ?? '';
 }
@@ -34,7 +34,7 @@ export function Avatar({ person, groesse = 32, ring, style }) {
   );
 }
 
-/** Ueberlappende Avatare, hoechstens max, danach "+n". */
+/** Overlapping avatars, at most max, then "+n". */
 export function AvatarStapel({ personen, groesse = 32, max = 3, ring }) {
   const zu = personen.length - max;
   return (

@@ -1,8 +1,8 @@
-// Einstieg fuer den Import. Nimmt eine Datei und liefert Board-Daten samt
-// Bericht. Zwei Quellen:
+// Entry point for the import. Takes a file and returns board data plus a
+// report. Two sources:
 //
-//   .whiteboard (oder .json)   das eigene Format, siehe zeichnen/export.js
-//   .zip / .html               Export aus Microsoft Whiteboard
+//   .whiteboard (or .json)     our own format, see zeichnen/export.js
+//   .zip / .html               export from Microsoft Whiteboard
 
 import { msWhiteboardUmwandeln } from './msWhiteboard.js';
 import { zipLesen } from './zip.js';

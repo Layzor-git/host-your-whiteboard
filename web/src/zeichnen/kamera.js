@@ -1,5 +1,5 @@
-// Welt- und Bildschirmkoordinaten. (x, y) ist die Weltposition der linken
-// oberen Ecke, z der Zoom: Bildschirm = (Welt - (x, y)) * z, in CSS-Pixeln.
+// World and screen coordinates. (x, y) is the world position of the top
+// left corner, z the zoom: screen = (world - (x, y)) * z, in CSS pixels.
 
 export const ZOOM_MIN = 0.05;
 export const ZOOM_MAX = 20;
@@ -29,7 +29,7 @@ export class Kamera {
     return { x1: this.x, y1: this.y, x2: this.x + breite / this.z, y2: this.y + hoehe / this.z };
   }
 
-  /** Rechteck g mit rand Pixeln Abstand einpassen, hoechstens bis maxZoom. */
+  /** Fit rectangle g with a margin of rand pixels, at most up to maxZoom. */
   einpassen(g, breite, hoehe, rand = 48, maxZoom = 1) {
     const w = Math.max(g.x2 - g.x1, 1);
     const h = Math.max(g.y2 - g.y1, 1);

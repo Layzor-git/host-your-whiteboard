@@ -6,8 +6,8 @@ import { ausstehendeSenden } from './daten/speicher.js';
 import { themeAnwenden } from './daten/einstellungen.js';
 import { spracheAnwenden } from './i18n/index.js';
 
-// Schriften liegen mit im Bau statt bei Google: So funktionieren sie auch
-// offline, und der Service Worker kann sie zwischenspeichern.
+// Fonts are part of the build instead of coming from Google: that way they
+// also work offline, and the service worker can cache them.
 import '@fontsource/onest/400.css';
 import '@fontsource/onest/500.css';
 import '@fontsource/onest/600.css';
@@ -22,7 +22,7 @@ serviceWorkerAnmelden();
 speicherSichern();
 themeAnwenden();
 spracheAnwenden();
-// Was offline liegen geblieben ist, jetzt nachschieben
+// Send whatever was left behind offline now
 ausstehendeSenden().catch(() => {});
 window.addEventListener('online', () => ausstehendeSenden().catch(() => {}));
 

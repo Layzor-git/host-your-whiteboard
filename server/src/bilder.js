@@ -1,9 +1,9 @@
-// Bilder auf Boards. Die Datei liegt auf dem Pi unter data/bilder, das
-// Board-Element verweist nur auf ihre Id. Ausgeliefert wird ein Bild nur an
-// Personen, die das Board sehen duerfen.
+// Images on boards. The file lives on the Pi under data/bilder, the board
+// element only refers to its id. An image is only served to people who
+// are allowed to see the board.
 //
-// Eine Datei kann zu mehreren Boards gehoeren (Duplizieren kopiert nur den
-// Verweis). Geloescht wird sie erst, wenn kein Board mehr auf sie zeigt.
+// A file can belong to several boards (duplicating copies only the
+// reference). It is deleted only once no board points to it any more.
 
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -17,8 +17,8 @@ export const MAX_BYTES = 20 * 1024 * 1024;
 
 const ORDNER = () => join(config.datenVerzeichnis, 'bilder');
 
-// Am Dateianfang erkennen, was es wirklich ist. Dem Content-Type des
-// Browsers allein wird nicht geglaubt.
+// Detect from the start of the file what it really is. The browser's
+// Content-Type alone is not trusted.
 function typErkennen(b) {
   if (b.length > 8 && b[0] === 0x89 && b.toString('ascii', 1, 4) === 'PNG') return 'image/png';
   if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
@@ -29,7 +29,7 @@ function typErkennen(b) {
 
 const ENDUNG = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' };
 
-/** Speichert ein hochgeladenes Bild; wunschId erlaubt Import mit festen Ids. */
+/** Stores an uploaded image; wunschId allows importing with fixed ids. */
 export function hochladen(nutzerId, boardId, puffer, { wunschId, breite, hoehe } = {}) {
   pruefen(nutzerId, boardId, 'bearbeiten');
   if (!Buffer.isBuffer(puffer) || !puffer.length) throw new Ungueltig('image_empty');
@@ -52,7 +52,7 @@ export function hochladen(nutzerId, boardId, puffer, { wunschId, breite, hoehe }
   return { id, typ, groesse: puffer.length };
 }
 
-/** Pfad und Typ zum Ausliefern. */
+/** Path and type for serving. */
 export function holen(nutzerId, boardId, id) {
   pruefen(nutzerId, boardId);
   const b = datenbank().prepare('SELECT datei, typ FROM bild WHERE board_id = ? AND id = ?').get(boardId, id);
@@ -60,7 +60,7 @@ export function holen(nutzerId, boardId, id) {
   return { pfad: join(ORDNER(), b.datei), typ: b.typ };
 }
 
-/** Beim Duplizieren: dieselben Dateien auch dem neuen Board zuordnen. */
+/** When duplicating: assign the same files to the new board as well. */
 export function kopieren(vonBoard, nachBoard) {
   datenbank()
     .prepare(`INSERT OR IGNORE INTO bild (board_id, id, datei, typ, groesse, breite, hoehe, erstellt_am)
@@ -68,7 +68,7 @@ export function kopieren(vonBoard, nachBoard) {
     .run(nachBoard, vonBoard);
 }
 
-/** Dateien loeschen, auf die kein Board mehr zeigt. */
+/** Delete files that no board points to any more. */
 export function aufraeumen() {
   let dateien;
   try {

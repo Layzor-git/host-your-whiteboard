@@ -3,8 +3,8 @@ import { Dialog } from './bausteine.jsx';
 import { useT } from '../i18n/index.js';
 import { abmelden, abmeldenVorbereiten } from '../daten/abmelden.js';
 
-// "Abmelden?" Sagt, als wer man angemeldet ist, und warnt, falls noch
-// Aenderungen nicht beim Server sind (die gingen beim Abmelden verloren).
+// "Sign out?" Says who you are signed in as, and warns if some changes
+// have not reached the server yet (they would be lost on sign-out).
 
 export default function AbmeldenDialog({ offen, schliessen, ich }) {
   const t = useT();

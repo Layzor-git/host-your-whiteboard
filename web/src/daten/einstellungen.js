@@ -1,7 +1,7 @@
-// Einstellungen, die fuer alle Boards gelten: Stift-Slots, Radierer,
-// Formen, Stiftgefuehl, Darstellung. Liegen im Browser (localStorage), wie
-// im Design vorgesehen. Jedes Geraet darf seine eigenen haben: Auf dem iPad
-// will man vielleicht andere Stifte als am Wacom.
+// Settings that apply to all boards: pen slots, eraser, shapes, pen feel,
+// appearance. Stored in the browser (localStorage), as intended by the
+// design. Every device may have its own: on the iPad you may want
+// different pens than on the Wacom.
 
 import { useSyncExternalStore } from 'react';
 
@@ -17,8 +17,8 @@ export const STANDARD = {
   letzterSlot: 0,
   radierer: { modus: 'strich', groesse: 28 },
   form: { art: 'rechteck', farbe: 'blue', fuellung: null, breite: 3 },
-  // Eigener Name statt "auswahl": Wer schon 'rechteck' gespeichert hat,
-  // bekommt so trotzdem den Pfeil als neuen Standard.
+  // A new name instead of "auswahl": whoever already saved 'rechteck'
+  // still gets the pointer as the new default.
   auswahlArt: 'pfeil', // 'pfeil' | 'rechteck' | 'lasso'
   eigeneFarben: [],
   glaettung: 50,
@@ -37,7 +37,7 @@ function laden() {
     const roh = JSON.parse(localStorage.getItem(SCHLUESSEL));
     if (roh && typeof roh === 'object') return { ...STANDARD, ...roh };
   } catch {
-    // kaputt oder nicht erlaubt: Standard
+    // broken or not allowed: default
   }
   return STANDARD;
 }
@@ -54,7 +54,7 @@ export function einstellungenSetzen(teil) {
   try {
     localStorage.setItem(SCHLUESSEL, JSON.stringify(stand));
   } catch {
-    // privater Modus: gilt dann nur fuer diese Sitzung
+    // private mode: then it only applies to this session
   }
   for (const h of hoerer) h();
 }
@@ -82,7 +82,7 @@ export function aktivesTheme(darstellung = stand.darstellung) {
   return dunkelAbfrage?.matches ? 'dark' : 'light';
 }
 
-/** Setzt wb-light / wb-dark auf <html>, auch wenn das System umschaltet. */
+/** Sets wb-light / wb-dark on <html>, even when the system switches. */
 export function themeAnwenden() {
   const setzen = () => {
     const t = aktivesTheme();
@@ -95,5 +95,5 @@ export function themeAnwenden() {
   dunkelAbfrage?.addEventListener?.('change', setzen);
 }
 
-/** Touch-Geraet? (iPad) Dann gibt es Finger-Schalter und Schnellumschalter. */
+/** Touch device? (iPad) Then there are finger toggles and quick switches. */
 export const istTouch = globalThis.matchMedia?.('(pointer: coarse)').matches ?? false;

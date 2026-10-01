@@ -1,19 +1,19 @@
-// Haelt alles zusammen: Dokument, Kamera, Renderer und die Eingabe. Kennt
-// kein React. Die Oberflaeche spricht nur ueber die oeffentlichen Methoden
-// und beiZustand() mit ihm, so bleibt die Zeichenschleife frei von
-// React-Renderlaeufen.
+// Holds everything together: document, camera, renderer and input. Knows
+// nothing about React. The UI talks to it only through the public methods
+// and beiZustand(), which keeps the drawing loop free of React render
+// passes.
 //
-// Eingabe:
-//   Stift            zeichnet mit dem aktiven Werkzeug. Radier-Ende oder
-//                    Seitentaste radieren, solange sie gedrueckt sind.
-//   Maus links       aktives Werkzeug, Mitte = schwenken
-//   Finger           schwenken, zwei Finger = zoomen (oder zeichnen, wenn
-//                    "Finger zeichnet" an ist). Liegt der Stift auf, werden
-//                    Finger ignoriert, das ist die Handballen-Erkennung.
-//   Rad              schwenken, mit Strg zoomen (auch Touchpad-Pinch)
+// Input:
+//   Pen              draws with the active tool. Eraser end or side button
+//                    erase while they are pressed.
+//   Left mouse       active tool, middle = pan
+//   Finger           pan, two fingers = zoom (or draw, when "Finger draws"
+//                    is on). While the pen is down, fingers are ignored;
+//                    that is the palm rejection.
+//   Wheel            pan, zoom with Ctrl (also touchpad pinch)
 //
-// Werkzeuge: stift (Farbe, Breite, textmarker aus stile.stift), radierer,
-// form, lasso, hand. Welche Stift-Slots es gibt, weiss nur die Oberflaeche.
+// Tools: stift (color, width, textmarker from stile.stift), radierer,
+// form, lasso, hand. Which pen slots exist only the UI knows.
 
 import { Dokument } from './dokument.js';
 import { enthaelt, grenzen, neueId, transformieren, trifft } from './elemente.js';
@@ -30,14 +30,14 @@ import {
 export const WERKZEUGE = ['stift', 'radierer', 'form', 'lasso', 'hand'];
 export const ZOOM_STUFEN = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
 
-/** Glaettung 0..100 aus den Einstellungen auf die drei Stufen der Engine. */
+/** Smoothing 0..100 from the settings mapped to the engine's three levels. */
 export function glaettungAusRegler(wert) {
   const s = Math.min(100, Math.max(0, wert)) / 100;
   return { stabilisierung: 0.7 * s, glaettung: s, vereinfachung: GLAETTUNG_STANDARD.vereinfachung };
 }
 
-// Zwischenablage fuer alle Boards dieser Sitzung. Tiefe Kopien, damit ein
-// spaeteres Einfuegen nichts mit dem Original teilt.
+// Clipboard for all boards of this session. Deep copies, so that a later
+// paste shares nothing with the original.
 let ablage = null;
 
 function istEingabefeld(ziel) {
@@ -55,9 +55,9 @@ export class Editor {
   };
   einst = { ...GLAETTUNG_STANDARD, druck: true, fingerZeichnet: false, rohMerken: false };
   letzterStrich = null;
-  /** ids der ausgewaehlten Elemente */
+  /** ids of the selected elements */
   auswahl = new Set();
-  /** Nur ansehen: Leinwand laesst sich schwenken und zoomen, sonst nichts */
+  /** View only: the canvas can be panned and zoomed, nothing else */
   nurLesen = false;
 
   #aktion = null;
@@ -76,8 +76,8 @@ export class Editor {
   #zeiger = null;
 
   /**
-   * optionen.tasten: Tastenkuerzel am Fenster abhoeren (Standard ja). Die
-   * kleine Testflaeche in den Einstellungen braucht das nicht.
+   * optionen.tasten: listen for keyboard shortcuts on the window (default
+   * yes). The small test area in the settings does not need that.
    */
   constructor(container, optionen = {}) {
     this.container = container;
@@ -100,11 +100,11 @@ export class Editor {
     an(container, 'pointercancel', this.#hoch);
     an(container, 'pointerleave', this.#raus);
     an(container, 'wheel', this.#rad, { passive: false });
-    // Auswahlrahmen, Leisten usw. liegen als Geschwister ueber der Leinwand:
-    // Das Rad darf dort nicht den Browser zoomen.
+    // Selection frame, toolbars etc. are siblings above the canvas: the
+    // wheel must not zoom the browser there.
     an(window, 'wheel', this.#radDarueber, { passive: false });
     an(container, 'contextmenu', (e) => e.preventDefault());
-    // iPad: sonst kommen beim langen Aufsetzen Lupe und Textauswahl.
+    // iPad: otherwise a long press brings up the magnifier and text selection.
     an(container, 'touchstart', (e) => e.preventDefault(), { passive: false });
     an(container, 'gesturestart', (e) => e.preventDefault());
     if (optionen.tasten !== false) {
@@ -115,7 +115,7 @@ export class Editor {
     }
 
     this.#aufraeumen.push(this.dok.beiAenderung((e) => {
-      // Was nicht mehr existiert, kann nicht ausgewaehlt bleiben.
+      // What no longer exists cannot stay selected.
       if (e.art === 'umbau' || e.art === 'geladen' || e.art === 'fremd') {
         for (const id of this.auswahl) if (!this.dok.get(id)) this.auswahl.delete(id);
       }
@@ -131,9 +131,9 @@ export class Editor {
     this.#beruehrt.clear();
   }
 
-  // ------------------------------------------------------ fuer die Oberflaeche
+  // ---------------------------------------------------------------- for the UI
 
-  /** fn(zustand) bei jeder Aenderung, hoechstens einmal pro Bild. */
+  /** fn(zustand) on every change, at most once per frame. */
   beiZustand(fn) {
     this.#hoerer.add(fn);
     fn(this.zustand());
@@ -141,28 +141,28 @@ export class Editor {
   }
 
   /**
-   * fn(dateien, weltPunkt | null): Bilder sollen aufs Board (Strg+V). Das
-   * Hochladen macht die Oberflaeche, die Engine kennt keinen Server.
+   * fn(dateien, weltPunkt | null): images should go onto the board
+   * (Ctrl+V). The UI does the upload, the engine knows no server.
    */
   beiDateien(fn) {
     this.#dateiHoerer.add(fn);
     return () => this.#dateiHoerer.delete(fn);
   }
 
-  /** Mitte des sichtbaren Bereichs in Weltkoordinaten */
+  /** Center of the visible area in world coordinates */
   sichtMitte() {
     return this.kamera.zuWelt(this.renderer.breite / 2, this.renderer.hoehe / 2);
   }
 
-  /** Bildschirmpunkt (clientX/Y) in Weltkoordinaten */
+  /** Screen point (clientX/Y) in world coordinates */
   weltVonSchirm(clientX, clientY) {
     const r = this.container.getBoundingClientRect();
     return this.kamera.zuWelt(clientX - r.left, clientY - r.top);
   }
 
   /**
-   * Ein fertig hochgeladenes Bild einsetzen. Groesse: natuerliche Groesse,
-   * aber hoechstens 60 % des sichtbaren Bereichs. mitte in Weltkoordinaten.
+   * Insert an image that has finished uploading. Size: natural size, but
+   * at most 60 % of the visible area. mitte in world coordinates.
    */
   bildEinsetzen({ bild, breite, hoehe, name, mitte }) {
     const k = this.kamera;
@@ -189,7 +189,7 @@ export class Editor {
     return el;
   }
 
-  /** Datei eines Bildes tauschen; die Breite bleibt, die Hoehe folgt dem neuen Format. */
+  /** Swap an image's file; the width stays, the height follows the new aspect ratio. */
   bildErsetzen(id, { bild, breite, hoehe, name }) {
     const el = this.dok.get(id);
     if (!el || el.typ !== 'bild') return;
@@ -203,13 +203,13 @@ export class Editor {
     tx.abschliessen();
   }
 
-  /** fn(el | null): eigener Strich im Entstehen, fuer andere Geraete. */
+  /** fn(el | null): own stroke in progress, for other devices. */
   beiEntwurf(fn) {
     this.#entwurfHoerer.add(fn);
     return () => this.#entwurfHoerer.delete(fn);
   }
 
-  /** Fremden Strich im Entstehen zeigen (el = null: weg damit). */
+  /** Show someone else's stroke in progress (el = null: remove it). */
   entwurfSetzen(von, el, person) {
     const e = this.renderer.entwuerfe;
     if (el) {
@@ -221,8 +221,8 @@ export class Editor {
         spitze: { x: P[P.length - 2], y: P[P.length - 1] },
       });
     } else if (e.has(von)) {
-      // Strich fertig: der fertige kommt gleich als normales Element, nur das
-      // Etikett bleibt noch kurz stehen
+      // Stroke finished: the final one arrives shortly as a normal element,
+      // only the label stays a little longer
       e.set(von, { ...e.get(von), ende: performance.now() });
     }
     this.renderer.obenNeu();
@@ -235,7 +235,7 @@ export class Editor {
     this.#melden();
   }
 
-  /** fn(e) sobald jemand die Leinwand beruehrt, zum Schliessen von Popovern. */
+  /** fn(e) as soon as someone touches the canvas, for closing popovers. */
   beiBeruehrung(fn) {
     this.#beruehrt.add(fn);
     return () => this.#beruehrt.delete(fn);
@@ -307,7 +307,7 @@ export class Editor {
     this.kameraGeaendert();
   }
 
-  /** Naechste Stufe aus ZOOM_STUFEN, richtung +1 oder -1. */
+  /** Next level from ZOOM_STUFEN, richtung +1 or -1. */
   zoomStufe(richtung) {
     const z = this.kamera.z;
     const ziel = richtung > 0
@@ -337,13 +337,13 @@ export class Editor {
     this.#melden();
   }
 
-  /** Radius des Radierers in Weltkoordinaten. */
+  /** Eraser radius in world coordinates. */
   radiererRadius() {
     const r = this.stile.radierer;
     return r.modus === 'punkt' ? r.groesse / 2 : STRICH_RADIERER_PX / this.kamera.z;
   }
 
-  /** Grenzen aller Elemente, oder null bei leerem Board. */
+  /** Bounds of all elements, or null for an empty board. */
   inhaltsGrenzen() {
     const els = this.dok.elemente;
     if (!els.length) return null;
@@ -352,7 +352,7 @@ export class Editor {
     return g;
   }
 
-  // ------------------------------------------------------------- Auswahl
+  // ----------------------------------------------------------- Selection
 
   auswahlSetzen(ids) {
     const neu = new Set(ids.filter((id) => this.dok.get(id)));
@@ -361,7 +361,7 @@ export class Editor {
     this.#melden();
   }
 
-  /** Oberstes Element an einem Weltpunkt (Antippen zum Auswaehlen). */
+  /** Topmost element at a world point (tap to select). */
   elementBei(x, y) {
     const r = 6 / this.kamera.z;
     const g = { x1: x - r, y1: y - r, x2: x + r, y2: y + r };
@@ -411,7 +411,7 @@ export class Editor {
     this.auswahlLoeschen();
   }
 
-  /** Aus der Zwischenablage, unter dem Zeiger oder leicht versetzt. */
+  /** From the clipboard, under the pointer or slightly offset. */
   einfuegen() {
     if (!ablage?.length) return;
     let g = grenzen(ablage[0]);
@@ -474,8 +474,8 @@ export class Editor {
   }
 
   /**
-   * Farbe fuer alle ausgewaehlten Striche, Formen und Textmarker. Stift und
-   * Formen werden deckend, Textmarker bekommen die Farbe durchscheinend.
+   * Color for all selected strokes, shapes and highlighters. Pen and
+   * shapes become opaque, highlighters get the color translucent.
    */
   auswahlFaerben(farbe) {
     const tx = this.dok.transaktion();
@@ -487,7 +487,7 @@ export class Editor {
     tx.abschliessen();
   }
 
-  /** Strichstaerke fuer alle ausgewaehlten Formen. */
+  /** Stroke width for all selected shapes. */
   auswahlFormBreite(breite) {
     const tx = this.dok.transaktion();
     for (const el of this.#ausgewaehlt()) {
@@ -497,8 +497,8 @@ export class Editor {
   }
 
   /**
-   * Von einem Anfasser der Oberflaeche aus (pointerdown dort). griff wie
-   * bei TransformAktion. Die weiteren Bewegungen haengen am Anfasser.
+   * Started from a UI handle (pointerdown there). griff as in
+   * TransformAktion. Further movements are attached to the handle.
    */
   anfasserGreifen(griff, e) {
     if (!this.auswahl.size || this.#aktion) return;
@@ -506,7 +506,7 @@ export class Editor {
     e.stopPropagation();
     this.#rechteck = this.container.getBoundingClientRect();
     const ziel = e.currentTarget;
-    try { ziel.setPointerCapture(e.pointerId); } catch { /* egal */ }
+    try { ziel.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     const aktion = griff === 'ende1' || griff === 'ende2'
       ? new EndpunktAktion(this, e, griff === 'ende1' ? 1 : 2)
       : new TransformAktion(this, e, griff);
@@ -545,8 +545,8 @@ export class Editor {
     }
     if (!g) return null;
     const k = this.kamera;
-    // Beim Drehen bleibt der Rahmen in Originalgroesse und dreht sich um
-    // seine Mitte, sonst wird er mit der Abbildung umgerechnet.
+    // While rotating, the frame keeps its original size and rotates around
+    // its center; otherwise it is recomputed with the transform.
     let x1 = g.x1, y1 = g.y1, x2 = g.x2, y2 = g.y2;
     if (!winkel) {
       const [a0, , , d0, e0, f0] = M;
@@ -557,8 +557,8 @@ export class Editor {
     const farben = new Set(els.filter((el) => el.typ !== 'bild').map((el) => markerAlsTinte(el.farbe)));
     const formBreiten = new Set(els.filter((el) => el.typ === 'form').map((el) => el.breite ?? 3));
     const nurBilder = els.length > 0 && els.every((el) => el.typ === 'bild');
-    // Eine einzelne Linie oder ein Pfeil: Anfasser an beiden Enden statt
-    // Rahmen-Anfassern, damit man ein Ende allein ziehen kann.
+    // A single line or arrow: handles at both ends instead of frame
+    // handles, so one end can be dragged on its own.
     let linie = els.length === 1 && els[0].typ === 'form' && (els[0].form === 'linie' || els[0].form === 'pfeil')
       ? els[0] : null;
     if (a instanceof EndpunktAktion) linie = a.element;
@@ -577,11 +577,11 @@ export class Editor {
       winkel,
       anzahl: this.auswahl.size,
       farbe: farben.size === 1 ? [...farben][0] : null,
-      // Formen in der Auswahl: ihre Strichstaerke (gemischt: 0)
+      // Shapes in the selection: their stroke width (mixed: 0)
       formBreite: formBreiten.size ? (formBreiten.size === 1 ? [...formBreiten][0] : 0) : null,
       bewegt: a instanceof TransformAktion || a instanceof EndpunktAktion,
       nurBilder,
-      // Einzelnes Bild: Groesse fuer den Chip oben rechts (Design 8f)
+      // Single image: size for the chip at the top right (design 8f)
       bild: nurBilder && els.length === 1 ? {
         id: els[0].id,
         breite: Math.round(Math.abs(x2 - x1)),
@@ -596,14 +596,14 @@ export class Editor {
     return { x: (h.start.x - k.x) * k.z, y: (h.start.y - k.y) * k.z, grad: h.grad, eingerastet: h.eingerastet };
   }
 
-  // ---------------------------------------------------------------- intern
+  // -------------------------------------------------------------- internal
 
   welt(e) {
     const r = this.#rechteck ?? this.container.getBoundingClientRect();
     return this.kamera.zuWelt(e.clientX - r.left, e.clientY - r.top);
   }
 
-  /** Akzentfarbe aus den Design-Tokens, fuer Lasso und Hilfslinien. */
+  /** Accent color from the design tokens, for lasso and guides. */
   akzent(deckkraft = 1) {
     this.#farben ??= getComputedStyle(this.container);
     const f = this.#farben.getPropertyValue('--ui-accent').trim() || '#4c4fd0';
@@ -691,7 +691,7 @@ export class Editor {
       this.#finger.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (this.#stiftUnten) return;
       if (this.#finger.size === 2) {
-        // Zweiter Finger: was der erste angefangen hat, wird zum Zoomen.
+        // Second finger: whatever the first one started becomes zooming.
         if (this.#aktion?.pointerType === 'touch') this.#beenden(!(this.#aktion instanceof HandAktion));
         this.#pinchStarten();
         return;
@@ -713,7 +713,7 @@ export class Editor {
     }
     if (e.pointerType === 'pen') {
       this.#stiftUnten = true;
-      // 32 = Radier-Ende, 2 = Seitentaste
+      // 32 = eraser end, 2 = side button
       if (!this.nurLesen && (e.button === 5 || e.buttons & 32 || e.buttons & 2)) wz = 'radierer';
     }
 
@@ -725,15 +725,15 @@ export class Editor {
       const w = this.welt(e);
       const art = this.stile.auswahl?.art ?? 'pfeil';
       if (!e.shiftKey && this.#imAuswahlRahmen(w)) {
-        // In der Auswahl anfassen: verschieben
+        // Grabbed inside the selection: move
         aktion = new TransformAktion(this, e, 'mitte');
       } else if (art === 'pfeil' && !e.shiftKey && this.elementBei(w.x, w.y)) {
-        // Pfeil auf ein Element: auswaehlen und gleich mitnehmen. Nur
-        // getippt, bewegt sich nichts, dann ist es einfach ausgewaehlt.
+        // Pointer on an element: select it and take it along right away.
+        // Just tapped, nothing moves, then it is simply selected.
         this.auswahlSetzen([this.elementBei(w.x, w.y).id]);
         aktion = new TransformAktion(this, e, 'mitte');
       } else {
-        // Leere Flaeche (Pfeil: Rechteck aufziehen) oder Shift: auswaehlen
+        // Empty area (pointer: drag a rectangle) or Shift: select
         aktion = new LassoAktion(this, e, art === 'pfeil' ? 'rechteck' : art);
       }
     } else {
@@ -830,8 +830,8 @@ export class Editor {
     this.kameraGeaendert();
   };
 
-  // Ueber dem Auswahlrahmen wie auf der Leinwand; ueber Leisten und
-  // Popovern nur Strg+Rad (Zoom), damit Listen dort weiter scrollen.
+  // Over the selection frame same as on the canvas; over toolbars and
+  // popovers only Ctrl+wheel (zoom), so lists there keep scrolling.
   #radDarueber = (e) => {
     const ziel = e.target;
     if (!(ziel instanceof Element) || this.container.contains(ziel)) return;
@@ -839,8 +839,8 @@ export class Editor {
     if (ziel.closest('.auswahl-rahmen') || e.ctrlKey || e.metaKey) this.#rad(e);
   };
 
-  // Nur was die Leinwand selbst betrifft. Werkzeugwahl (P, H, E, L, 1-4)
-  // und Esc liegen bei der Oberflaeche, weil nur sie Slots und Popover kennt.
+  // Only what concerns the canvas itself. Tool selection (P, H, E, L, 1-4)
+  // and Esc belong to the UI, because only it knows slots and popovers.
   #taste = (e) => {
     if (istEingabefeld(e.target)) return;
     const strg = e.ctrlKey || e.metaKey;
@@ -853,7 +853,7 @@ export class Editor {
       return;
     }
     if (strg && k === 'y') { e.preventDefault(); this.wiederholen(); return; }
-    // Nur ansehen: Zoomen und Schwenken ja, veraendern nein
+    // View only: zooming and panning yes, changing no
     if (this.nurLesen && (strg ? 'axvd'.includes(k) : k === 'delete' || k === 'backspace')) return;
     if (strg && (k === '+' || k === '=')) { e.preventDefault(); this.zoomStufe(1); return; }
     if (strg && k === '-') { e.preventDefault(); this.zoomStufe(-1); return; }
@@ -861,8 +861,8 @@ export class Editor {
     if (strg && k === 'a') { e.preventDefault(); this.allesAuswaehlen(); return; }
     if (strg && k === 'c') { if (this.auswahl.size) { e.preventDefault(); this.kopieren(); } return; }
     if (strg && k === 'x') { if (this.auswahl.size) { e.preventDefault(); this.ausschneiden(); } return; }
-    // Strg+V laeuft ueber das paste-Ereignis (#einfuegenAusAblage): nur
-    // dort kommen Bilder aus der System-Zwischenablage an
+    // Ctrl+V goes through the paste event (#einfuegenAusAblage): only there
+    // do images from the system clipboard arrive
     if (strg && k === 'v') return;
     if (strg && k === 'd') { e.preventDefault(); this.duplizieren(); return; }
     if (strg || e.altKey) return;

@@ -1,7 +1,7 @@
-// Whiteboards: anlegen, laden, speichern, Papierkorb.
+// Whiteboards: create, load, save, trash.
 //
-// Wer was darf, entscheidet freigaben.js. Ein Board, auf das jemand keinen
-// Zugriff hat, sieht fuer ihn aus wie eines, das es nicht gibt.
+// Who may do what is decided by freigaben.js. A board someone has no
+// access to looks to them like one that does not exist.
 
 import { datenbank, jetzt, neueId } from './db.js';
 import { NichtGefunden, Ungueltig } from './fehler.js';
@@ -17,9 +17,9 @@ const MUSTER = ['none', 'dots', 'grid', 'lines'];
 const BILDTYPEN = ['image/png', 'image/webp', 'image/jpeg'];
 
 /**
- * Metadaten fuer die Oberflaeche. recht: 'besitzer' | 'bearbeiten' |
- * 'ansehen'. Bei fremden Boards steht dabei, wem es gehoert, bei eigenen,
- * mit wie vielen Personen es geteilt ist.
+ * Metadata for the UI. recht: 'besitzer' | 'bearbeiten' | 'ansehen'.
+ * For other people's boards it says who owns it, for your own ones how
+ * many people it is shared with.
  */
 function meta(z, recht = 'besitzer', extra = {}) {
   return {
@@ -58,7 +58,7 @@ function datenPruefen(d) {
   if (typeof daten !== 'object' || !Array.isArray(daten.elemente)) {
     throw new Ungueltig('board_data_invalid');
   }
-  // Der Hintergrund hat eine eigene Spalte und steht nicht doppelt hier.
+  // The background has its own column and is not duplicated here.
   return { version: daten.version ?? 1, elemente: daten.elemente };
 }
 
@@ -66,7 +66,7 @@ function zeile(id) {
   return datenbank().prepare('SELECT * FROM board WHERE id = ?').get(id);
 }
 
-/** Alte Boards im Papierkorb endgueltig entfernen. */
+/** Permanently remove old boards from the trash. */
 function papierkorbAufraeumen(nutzerId) {
   const grenze = new Date(Date.now() - PAPIERKORB_TAGE * 864e5).toISOString();
   const r = datenbank()
@@ -83,11 +83,11 @@ export function liste(nutzerId) {
     .all(nutzerId)
     .map((z) => meta(z, 'besitzer', {
       geteiltMit: geteilt.get(z.id) ?? [],
-      // Im Papierkorb: mit einem Ordner geloescht? Dann liegt es in dessen Eintrag
+      // In the trash: deleted along with a folder? Then it lives in that folder's entry
       ...(z.geloescht_am && z.vorgang ? { vorgang: z.vorgang } : {}),
     }));
-  // Mit mir geteilt: direkt, oder ueber einen geteilten Ordner. Ueber den
-  // Ordner liegt ein Board da, wo der Besitzer es hat; das bestimmt ordnerId.
+  // Shared with me: directly, or through a shared folder. Through a folder,
+  // a board sits where its owner keeps it; that determines ordnerId.
   const ueberOrdner = freigaben.ordnerMitMirGeteilt(nutzerId);
   const ortVomBesitzer = new Map(ueberOrdner.boards.map((z) => [z.id, z.ort]));
   const direkt = freigaben.mitMirGeteilt(nutzerId);
@@ -98,7 +98,7 @@ export function liste(nutzerId) {
   }
   const fremde = [...fremdeZeilen.values()].map((z) => meta(z, freigaben.zugriff(nutzerId, z.id)?.recht ?? z.recht, {
     besitzer: freigaben.besitzerVon(z),
-    // Nur ueber einen Ordner geteilt: laesst sich nicht einzeln entfernen
+    // Shared only through a folder: cannot be removed on its own
     ...(direktIds.has(z.id) ? {} : { ueberOrdner: true }),
   }));
   const zuletzt = (b) => b.geoeffnetAm ?? b.geaendertAm;
@@ -126,9 +126,9 @@ export function anlegen(nutzerId, eingabe) {
   const titel = titelPruefen(eingabe.titel);
   const hintergrund = hintergrundPruefen(eingabe.hintergrund);
   const daten = datenPruefen(eingabe.daten);
-  // Die Id darf vom Geraet kommen: So kann ein Board auch offline entstehen
-  // und spaeter unter derselben Id ankommen. Zweimal senden legt es nicht
-  // zweimal an.
+  // The id may come from the device: that way a board can be created
+  // offline and arrive later under the same id. Sending it twice does not
+  // create it twice.
   let id = eingabe.id ? String(eingabe.id) : neueId('b');
   if (!/^[A-Za-z0-9_-]{6,64}$/.test(id)) throw new Ungueltig('board_id_invalid');
   const vorhanden = zeile(id);
@@ -142,7 +142,7 @@ export function anlegen(nutzerId, eingabe) {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(id, nutzerId, titel, JSON.stringify(hintergrund), JSON.stringify(daten),
     daten.elemente.length, zeit, zeit, zeit);
-  // Im Ordner anlegen, in dem man gerade ist
+  // Create it in the folder you are currently in
   if (eingabe.ordnerId) ordner.boardAblegen(nutzerId, id, eingabe.ordnerId);
   return { ...meta(zeile(id)), ordnerId: eingabe.ordnerId ?? null };
 }
@@ -155,8 +155,8 @@ function mitFremdInfo(z, recht) {
 export function laden(nutzerId, id) {
   const { board: z, recht } = freigaben.pruefen(nutzerId, id);
   const m = meta(z, recht, mitFremdInfo(z, recht));
-  // Ist das Board gerade live offen, ist der Stand im Speicher neuer als
-  // der in der Datenbank (die wird erst kurz danach geschrieben).
+  // If the board is open live right now, the state in memory is newer than
+  // the one in the database (which is written shortly afterwards).
   const live = liveStand(id);
   if (live) return { ...m, hintergrund: live.hintergrund, daten: { version: 1, elemente: live.elemente } };
   return { ...m, daten: JSON.parse(z.daten) };
@@ -191,7 +191,7 @@ export function speichern(nutzerId, id, eingabe) {
   datenbank()
     .prepare(`UPDATE board SET ${felder.join(', ')}, version = version + 1, geaendert_am = ? WHERE id = ?`)
     .run(...werte, jetzt(), id);
-  // Andere offene Geraete sollen es sofort sehen
+  // Other open devices should see it right away
   nachRestSpeichern(id, neu);
   return meta(zeile(id), recht);
 }
@@ -213,7 +213,7 @@ export function vorschau(nutzerId, id) {
   return { bild: Buffer.from(z.vorschau), typ: z.vorschau_typ };
 }
 
-/** Eine eigene Kopie, auch von einem geteilten Board. */
+/** A copy of your own, also of a shared board. */
 export function duplizieren(nutzerId, id) {
   const quelle = laden(nutzerId, id);
   const neu = anlegen(nutzerId, {
@@ -226,7 +226,7 @@ export function duplizieren(nutzerId, id) {
     .prepare('UPDATE board SET vorschau = ?, vorschau_typ = ? WHERE id = ?')
     .run(q.vorschau ?? null, q.vorschau_typ ?? null, neu.id);
   bilder.kopieren(id, neu.id);
-  // Die Kopie liegt dort, wo das Original liegt
+  // The copy goes where the original is
   const ort = ordner.orte(nutzerId).get(id);
   if (ort) ordner.boardAblegen(nutzerId, neu.id, ort);
   return meta(zeile(neu.id));
@@ -241,8 +241,8 @@ export function inPapierkorb(nutzerId, id) {
 export function wiederherstellen(nutzerId, id) {
   freigaben.pruefen(nutzerId, id, 'besitzer');
   datenbank().prepare('UPDATE board SET geloescht_am = NULL, vorgang = NULL WHERE id = ?').run(id);
-  // Lag es in einem Ordner, der inzwischen geloescht ist: den Ordnerpfad
-  // mit zurueckholen, damit es an seinem alten Ort landet
+  // If it was in a folder that has since been deleted: restore the folder
+  // path too, so it ends up in its old place
   const ort = datenbank()
     .prepare('SELECT ordner_id FROM board_ort WHERE nutzer_id = ? AND board_id = ?')
     .get(nutzerId, id);
@@ -250,7 +250,7 @@ export function wiederherstellen(nutzerId, id) {
   return meta(zeile(id));
 }
 
-/** Endgueltig loeschen geht nur aus dem Papierkorb heraus. */
+/** Permanent deletion only works from the trash. */
 export function endgueltigLoeschen(nutzerId, id) {
   const { board: z } = freigaben.pruefen(nutzerId, id, 'besitzer');
   if (!z.geloescht_am) {

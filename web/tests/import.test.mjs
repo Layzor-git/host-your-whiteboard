@@ -1,6 +1,6 @@
-// Import aus Microsoft Whiteboard gegen einen echten Export pruefen.
-// Pfad als Argument, sonst wird der Test uebersprungen:
-//   node tests/import.test.mjs pfad/zu/Whiteboard.html
+// Check the Microsoft Whiteboard import against a real export.
+// Path as an argument, otherwise the test is skipped:
+//   node tests/import.test.mjs path/to/Whiteboard.html
 
 import { readFileSync } from 'node:fs';
 

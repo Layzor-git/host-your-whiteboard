@@ -1,5 +1,5 @@
-// Die drei Anmeldearten (AUTH_MODE). Startet je einen Server gegen eine
-// frische Datenbank und prueft, wer er meint, dass anfragt.
+// The three sign-in modes (AUTH_MODE). Starts one server each against a
+// fresh database and checks who it thinks is asking.
 //   npm test
 
 import { spawn } from 'node:child_process';
@@ -25,7 +25,7 @@ async function mitServer(port, env, pruefen) {
   const basis = `http://127.0.0.1:${port}/api/v1`;
   try {
     for (let i = 0; ; i++) {
-      try { if ((await fetch(`${basis}/health`)).ok) break; } catch { /* noch nicht da */ }
+      try { if ((await fetch(`${basis}/health`)).ok) break; } catch { /* not up yet */ }
       if (server.exitCode !== null || i > 60) return { gestartet: false, ausgabe };
       await new Promise((r) => setTimeout(r, 100));
     }

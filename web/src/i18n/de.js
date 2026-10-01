@@ -1,5 +1,5 @@
-// Deutsch. Dieselben Schluessel wie en.js; geprueft von i18n-pruefen.mjs.
-// Mehrzahl mit { one, other } und {anzahl}.
+// German. The same keys as en.js; checked by i18n-pruefen.mjs.
+// Plurals with { one, other } and {anzahl}.
 
 export default {
   // ---------------------------------------------------------------- general

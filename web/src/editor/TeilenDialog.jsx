@@ -5,9 +5,10 @@ import { Avatar, rufname } from '../ui/Avatar.jsx';
 import { Dialog } from '../ui/bausteine.jsx';
 import { t, useT } from '../i18n/index.js';
 
-// "Board teilen" (Design 7b, 7c, 7f). Einladen per E-Mail mit Recht,
-// Liste der Personen mit Zugriff, Recht aendern, entfernen. Alles wirkt
-// sofort; wer gerade im Board ist, merkt es ohne Neuladen.
+// "Share board" (design 7b, 7c, 7f). Invite by email with a permission,
+// list of people with access, change permission, remove. Everything takes
+// effect immediately; whoever is in the board right now notices without
+// reloading.
 
 const RECHTE = [
   ['bearbeiten', 'rights.edit', 'rights.editHint'],
@@ -33,7 +34,7 @@ function RechteMenue({ wert, setzen, className }) {
   );
 }
 
-// art 'ordner': derselbe Dialog fuer einen Ordner (gilt fuer alles darin)
+// art 'ordner': the same dialog for a folder (applies to everything inside)
 const WEGE = {
   board: { laden: api.freigaben, setzen: api.freigabeSetzen, entfernen: api.freigabeEntfernen },
   ordner: { laden: api.ordnerFreigaben, setzen: api.ordnerFreigabeSetzen, entfernen: api.ordnerFreigabeEntfernen },
@@ -146,7 +147,7 @@ export default function TeilenDialog({ offen, schliessen, boardId, ordnerId, art
               <Icon name="aufklappen" groesse={16} staerke={2} />
             </button>
           </div>
-          {/* Am Handy steht die Rechtewahl neben "Einladen" statt im Feld */}
+          {/* On a phone the permission select sits next to "Invite" instead of in the field */}
           <button
             type="button"
             className="recht-knopf gross einladen-recht-handy"
@@ -173,8 +174,8 @@ export default function TeilenDialog({ offen, schliessen, boardId, ordnerId, art
         </div>
       )}
 
-      {/* Wer eingeladen wird, muss auch an der Anmeldung vorbei. Ohne
-          Anmeldung (single) oder in der Entwicklung gibt es nichts zu sagen. */}
+      {/* Whoever is invited also has to get past the sign-in. Without
+          sign-in (single) or in development there is nothing to say. */}
       {(!ich?.anmeldung || ich.anmeldung === 'cloudflare') && (
         <div className="hinweis-box">
           <Icon name="zugang" groesse={18} staerke={1.8} />
@@ -229,7 +230,7 @@ export default function TeilenDialog({ offen, schliessen, boardId, ordnerId, art
                 )}
               </div>
             ))}
-            {/* Zugriff ueber einen geteilten Ordner: nur anzeigen, aendern im Ordner */}
+            {/* Access through a shared folder: display only, change it in the folder */}
             {daten.ueberOrdner?.map(({ ordner, personen }) => personen.map((p) => (
               <div className="person-zeile ueber-ordner" key={`${ordner.id}-${p.email}`}>
                 <Avatar person={p} groesse={36} />
